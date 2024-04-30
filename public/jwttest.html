@@ -67,7 +67,8 @@
         </tr>
     </table>
     <hr />
-    <button onclick="load_user_info()">Load user info</button>
+    <button onclick="load_user_info()">Load user info</button> 
+    <button onclick="query_backend()">Query backend</button> 
 
     <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
         integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
@@ -168,6 +169,24 @@
                     console.log(body);
                     localStorage.setItem('zia_jwt_userinfo', body);
                     var info = JSON.parse(body);
+                    return info;
+                });
+        }
+
+        function query_backend() {
+            var accessToken = JSON.parse(localStorage.getItem('zia_jwt') || '{}').access_token || '';
+
+            var url = 'https://zia-be.bin932.com:2443/hello/2';
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + accessToken,
+                },
+            })
+                .then(response => response.text())
+                .then(body => {
+                    console.log('Backend response');
+                    console.log(body);
                     return info;
                 });
         }
