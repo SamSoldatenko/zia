@@ -1,0 +1,189 @@
+<html>
+
+<head>
+    <title>test JWT</title>
+</head>
+
+<body>
+    <h1>Test jwt</h1>
+    <h2>Authorization code grants with Proof Key for Code Exchange (PKCE)</h2>
+    <form method="get" action="https://zia.auth.eu-central-1.amazoncognito.com/oauth2/authorize">
+        <table>
+            <tr>
+                <td>client_id</td>
+                <td><input type="text" name="client_id" value="41n5fausr4m817q9uko6rkb5ni" size="40" /></td>
+            </tr>
+            <tr>
+                <td>response_type</td>
+                <td><input type="text" name="response_type" value="code" size="40" /></td>
+            </tr>
+            <tr>
+                <td>scope</td>
+                <td><input type="text" name="scope" value="email openid phone" size="40" /></td>
+            </tr>
+            <tr>
+                <td>redirect_uri</td>
+                <td><input class="redirect_uri" type="text" name="redirect_uri"
+                        value="http://localhost:3000/jwttest.html" size="40" /></td>
+            </tr>
+            <tr>
+                <td>code_verifier (Will not be sent with login request)</td>
+                <td><span class="code_verifier"></span></td>
+            </tr>
+            <tr>
+                <td>code_challenge [base64( sha256( code_verifier ) )]</td>
+                <td><input class="code_challenge" type="text" name="code_challenge" value="" size="40" /></td>
+            </tr>
+            <tr>
+                <td>code_challenge_method</td>
+                <td>
+                    <input type="text" name="code_challenge_method" value="S256" size="40" />
+                </td>
+            </tr>
+            <tr>
+                <td><button onclick="return generate_verifier(event)">generate_verifier</button></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><input type="submit" value="send" /></td>
+            </tr>
+        </table>
+    </form>
+    <hr />
+    <h2>Exchange code & code_verifier to JWT</h2>
+    <table>
+        <tr>
+            <td>Code: </td>
+            <td><input class="code" type="text" /></td>
+        </tr>
+        <tr>
+            <td>Code Verifier: </td>
+            <td><input class="code_verifier" type="text" /></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><button onclick="exchange_code_to_token()">Exchange to token</button></td>
+        </tr>
+    </table>
+    <hr />
+    <button onclick="load_user_info()">Load user info</button>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
+        integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+    <script type="application/javascript" language="javascript">
+
+        async function sha256AndBase64(input) {
+            // Convert the input string to ArrayBuffer
+            const buffer = new TextEncoder().encode(input);
+
+            // Compute the SHA-256 hash
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+
+            // Convert the hash ArrayBuffer to Uint8Array
+            const hashArray = new Uint8Array(hashBuffer);
+
+            // Convert the Uint8Array to Base64
+            const base64String = btoa(String.fromCharCode.apply(null, hashArray));
+
+            return base64String.replace('+', '-').replace('/', '_').replace(/=+$/, '');
+        }
+
+        function generateRandomString(length) {
+            var charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; // Characters to include in the random string
+            var result = "";
+            for (var i = 0; i < length; i++) {
+                var randomIndex = Math.floor(Math.random() * charset.length);
+                result += charset[randomIndex];
+            }
+            return result;
+        }
+
+        function guess_redirect_url() {
+            if (location.host == 'localhost:3000') {
+                return 'http://localhost:3000/jwttest.html';
+            }
+            return "https://zia.bin932.com/jwttest.html";
+        }
+
+        function getToken(code, codeVerifier) {
+            var url = "https://zia.auth.eu-central-1.amazoncognito.com/oauth2/token";
+            var formData = new URLSearchParams();
+            formData.append("redirect_uri", guess_redirect_url())
+            formData.append("client_id", "41n5fausr4m817q9uko6rkb5ni")
+            formData.append("code", code);
+            formData.append("grant_type", "authorization_code");
+            formData.append("code_verifier", codeVerifier);
+
+            return fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(JSON.stringify(data));
+                    return data;
+                });
+        }
+
+        function generate_verifier() {
+            var randomString = generateRandomString(40);
+            console.log('new code_verifier', randomString);
+            localStorage.setItem('zia_code_verifier', randomString);
+
+            $('span.code_verifier').text(randomString);
+
+            sha256AndBase64(randomString).then(v => $('input.code_challenge').val(v));
+            return false;
+        }
+
+        function exchange_code_to_token() {
+            var codeVerifier = $('input.code_verifier').val();
+            var code = $('input.code').val();
+            console.log("Exchange code to token code: ", code, "verifier:", codeVerifier);
+
+            getToken(code, codeVerifier).then(token => {
+                localStorage.removeItem('zia_code_verifier');
+                localStorage.setItem('zia_jwt', JSON.stringify(token));
+                location.assign(guess_redirect_url()); // to remove code from address bar
+            });
+        }
+
+        function load_user_info() {
+            var accessToken = JSON.parse(localStorage.getItem('zia_jwt') || '{}').access_token || '';
+
+            var url = 'https://zia.auth.eu-central-1.amazoncognito.com/oauth2/userInfo';
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + accessToken,
+                },
+            })
+                .then(response => response.text())
+                .then(body => {
+                    console.log('User info');
+                    console.log(body);
+                    localStorage.setItem('zia_jwt_userinfo', body);
+                    var info = JSON.parse(body);
+                    return info;
+                });
+        }
+
+        console.log("Loaded " + location.href);
+
+        $('input.redirect_uri').val(guess_redirect_url());
+        $('input.code_verifier').val(localStorage.getItem('zia_code_verifier'));
+
+        var matches = location.href.match('code=([^&]+)');
+        if (matches) {
+            $('input.code').val(matches[1]);
+        }
+
+
+    </script>
+</body>
+
+</html>
