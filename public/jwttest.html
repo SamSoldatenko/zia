@@ -127,10 +127,17 @@
                 },
                 body: formData
             })
-                .then(response => response.json())
-                .then(data => {
-                    console.log(JSON.stringify(data));
-                    return data;
+                .then(r => {
+                    if (r.ok) {
+                        return r.json().then(data => {
+                            console.log(JSON.stringify(data, null, 2));
+                            return data;
+                        });
+                    } else {
+                        console.error(r);
+                        r.text().then(console.error);
+                        return null;
+                    }
                 });
         }
 
@@ -151,15 +158,16 @@
             console.log("Exchange code to token code: ", code, "verifier:", codeVerifier);
 
             getToken(code, codeVerifier).then(token => {
-                localStorage.removeItem('zia_code_verifier');
-                localStorage.setItem('zia_jwt', JSON.stringify(token));
-                location.assign(guess_redirect_url()); // to remove code from address bar
+                if (token) {
+                    localStorage.removeItem('zia_code_verifier');
+                    localStorage.setItem('zia_jwt', JSON.stringify(token));
+                    location.assign(guess_redirect_url()); // to remove code from address bar
+                }
             });
         }
 
         function load_user_info() {
             var accessToken = JSON.parse(localStorage.getItem('zia_jwt') || '{}').access_token || '';
-
             var url = 'https://zia.auth.eu-central-1.amazoncognito.com/oauth2/userInfo';
             return fetch(url, {
                 method: "GET",
@@ -167,13 +175,19 @@
                     "Authorization": "Bearer " + accessToken,
                 },
             })
-                .then(response => response.text())
-                .then(body => {
-                    console.log('User info');
-                    console.log(body);
-                    localStorage.setItem('zia_jwt_userinfo', body);
-                    var info = JSON.parse(body);
-                    return info;
+                .then(r => {
+                    if (r.ok) {
+                        console.log('User info');
+                        return r.text().then(t => {
+                            console.log(t);
+                            localStorage.setItem('zia_jwt_userinfo', t);
+                            return JSON.parse(t);
+                        });
+                    } else {
+                        console.error('Failed to load user info: ', r);
+                        r.text().then(console.error);
+                        return null;
+                    }
                 });
         }
 
@@ -187,11 +201,18 @@
                     "Authorization": "Bearer " + accessToken,
                 },
             })
-                .then(response => response.text())
-                .then(body => {
-                    console.log('Backend response');
-                    console.log(body);
-                    return body;
+                .then(r => {
+                    if (r.ok) {
+                        return r.text().then(body => {
+                            console.log('Backend response');
+                            console.log(body);
+                            return body;
+                        });
+                    } else {
+                        console.error('Backend request failed:', r);
+                        r.text().then(console.error);
+                        return null;
+                    }
                 });
         }
 
@@ -229,7 +250,7 @@
             var parts = s.split('\.');
             var res = '';
             var timeinfo = '';
-            for(var i = 0; i < parts.length; i++) {
+            for (var i = 0; i < parts.length; i++) {
                 var p = parts[i];
                 try {
                     var j = JSON.parse(atob(p));
