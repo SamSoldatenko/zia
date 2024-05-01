@@ -67,9 +67,13 @@
         </tr>
     </table>
     <hr />
-    <button onclick="load_user_info()">Load user info</button> 
-    <button onclick="query_backend()">Query backend</button> 
-
+    <button onclick="load_user_info()">Load user info</button>
+    <button onclick="query_backend()">Query backend</button>
+    <hr />
+    <h3>Local Storage data</h3>
+    <button onclick="display_local_storage()">refresh</button><br />
+    <pre class="local_storage_report">
+    </div>
     <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
         integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
     <script type="application/javascript" language="javascript">
@@ -191,6 +195,61 @@
                 });
         }
 
+        function display_local_storage() {
+            var jwt = localStorage.getItem('zia_jwt');
+            var ui = localStorage.getItem('zia_jwt_userinfo');
+            var report = '';
+            if (jwt) {
+                report += 'JWT:\n';
+                report += JSON.stringify(JSON.parse(jwt), null, 2);
+                report += '\n\n';
+
+                report += 'AccessToken (decoded)\n';
+                report += decode_token(JSON.parse(jwt).access_token);
+                report += '\n';
+
+                report += 'RefreshToken (decoded)\n';
+                report += decode_token(JSON.parse(jwt).refresh_token);
+                report += '\n';
+
+                report += 'IDToken (decoded)\n';
+                report += decode_token(JSON.parse(jwt).id_token);
+                report += '\n';
+
+            }
+            if (ui) {
+                report += 'User Info:\n';
+                report += JSON.stringify(JSON.parse(ui), null, 2);
+                report += '\n';
+            }
+            $('pre.local_storage_report').text(report);
+        }
+
+        function decode_token(s) {
+            var parts = s.split('\.');
+            var res = '';
+            var timeinfo = '';
+            for(var i = 0; i < parts.length; i++) {
+                var p = parts[i];
+                try {
+                    var j = JSON.parse(atob(p));
+                    res += JSON.stringify(j, null, 2) + '\n';
+                    if (j.auth_time) {
+                        timeinfo += 'Auth Time: ' + new Date(j.auth_time * 1000).toISOString() + '\n';
+                    }
+                    if (j.exp) {
+                        timeinfo += 'Expires  : ' + new Date(j.exp * 1000).toISOString() + '\n';
+                    }
+                    if (j.iat) {
+                        timeinfo += 'Issued   : ' + new Date(j.iat * 1000).toISOString() + '\n';
+                    }
+                } catch (error) {
+                    res += '- ' + p.substr(0, 10) + '...\n';
+                }
+            }
+            return timeinfo + res;
+        }
+
         console.log("Loaded " + location.href);
 
         $('input.redirect_uri').val(guess_redirect_url());
@@ -201,6 +260,7 @@
             $('input.code').val(matches[1]);
         }
 
+        display_local_storage();
 
     </script>
 </body>
