@@ -1,11 +1,38 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-    <title>test JWT</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JWT and Login debug page</title>
+    <meta name="description" content="Page to debug login functionality" />
+    <style>
+        h1,
+        h2,
+        h3 {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        div.tokens_report {
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            font-size: 9pt;
+        }
+
+        *.red {
+            color: red;
+        }
+
+        *.green {
+            color: green;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>Test jwt</h1>
+
+    <h2>Tokens in local storage</h2>
+    <div class="tokens_report"></div>
+
     <h2>Authorization code grants with Proof Key for Code Exchange (PKCE)</h2>
     <form method="get" action="https://zia.auth.eu-central-1.amazoncognito.com/oauth2/authorize">
         <table>
@@ -26,12 +53,13 @@
                 <td><input class="redirect_uri" type="text" name="redirect_uri"
                         value="http://localhost:3000/jwttest.html" size="40" /></td>
             </tr>
-            <tr>
-                <td>code_verifier (Will not be sent with login request)</td>
+            <tr
+                title="Will not be sent to login url. But stored in localStorage. But later will be used when code exchanged to token.">
+                <td>code_verifier</td>
                 <td><span class="code_verifier"></span></td>
             </tr>
-            <tr>
-                <td>code_challenge [base64( sha256( code_verifier ) )]</td>
+            <tr title="This is base64( sha256( code_verifier ) )">
+                <td>code_challenge</td>
                 <td><input class="code_challenge" type="text" name="code_challenge" value="" size="40" /></td>
             </tr>
             <tr>
@@ -46,11 +74,11 @@
             </tr>
             <tr>
                 <td></td>
-                <td><input type="submit" value="send" /></td>
+                <td><input type="submit" value="Open login page" /></td>
             </tr>
         </table>
     </form>
-    <hr />
+
     <h2>Exchange code & code_verifier to JWT</h2>
     <table>
         <tr>
@@ -69,14 +97,77 @@
     <hr />
     <button onclick="load_user_info()">Load user info</button>
     <button onclick="query_backend()">Query backend</button>
-    <hr />
-    <h3>Local Storage data</h3>
-    <button onclick="display_local_storage()">refresh</button><br />
-    <pre class="local_storage_report">
     </div>
     <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
         integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
     <script type="application/javascript" language="javascript">
+        function print_tokens() {
+            // var tokens = JSON.parse(localStorage.getItem('zia_tokens') || '[]');
+            var tokens = [JSON.parse(localStorage.getItem('zia_jwt'))];
+            var html = '';
+            for (var i = 0; i < tokens.length; i++) {
+                var token = tokens[i];
+                var s = JSON.stringify(token, null, 2)
+                    .replaceAll('\n', '<br/>\n')
+                    .replaceAll('\n  ', '\n&nbsp;&nbsp;')
+                    .replaceAll(new RegExp(': "(([^"]{25})[^"]{10,})"', 'ig'), ': "$2...<button title="Copy to clipboard" onclick=\'copy_to_buffer("$1")\'>...</button>"')
+                    ;
+                html += s + '<br/><br/>\n';
+                html += '<button onclick="$(\'#token_detail_' + i + '\').toggle()">Details</button>\n';
+                html += '<div style="display:none" id="token_detail_' + i + '">\n';
+                html += '<b>ID Token:</b><br/>\n';
+                html += decode_token(token.id_token)
+                html += '<br/>\n';
+                html += '<b>Access Token</b><br/>\n';
+                html += decode_token(token.access_token)
+                html += '<br/>\n';
+                html += '<b>Refresh Token</b><br/>\n';
+                html += decode_token(token.refresh_token)
+                html += '<br/>\n';
+                html += '</div>\n';
+            }
+
+            $('div.tokens_report')
+                .html(html);
+        }
+
+        function copy_to_buffer(s) {
+            navigator.clipboard.writeText(s)
+                .then(r => { }, console.error);
+        }
+
+        function decode_token(s) {
+            var parts = s.split('\.');
+            var res = '';
+            var timeinfo = '';
+            for (var i = 0; i < parts.length; i++) {
+                var p = parts[i];
+                try {
+                    var j = JSON.parse(atob(p));
+                    res += '<tr><td></td><td>' +
+                        JSON.stringify(j, null, 2)
+                            .replaceAll('\n', '<br/>\n')
+                            .replaceAll('\n  ', '\n&nbsp;&nbsp;')
+                        + '</td></tr>\n';
+                    if (j.auth_time) {
+                        timeinfo += '<tr><td>Auth Time:</td><td>' + new Date(j.auth_time * 1000).toISOString() + '</td></tr>\n';
+                    }
+                    if (j.exp) {
+                        var d = new Date(j.exp * 1000);
+                        timeinfo += '<tr><td>Expires:</td><td class="' + ((1 * d) < (1 * new Date()) ? 'red' : 'green') + '">' + d.toISOString() + '</td></tr>\n';
+                    }
+                    if (j.iat) {
+                        timeinfo += '<tr><td>Issued:</td><td>' + new Date(j.iat * 1000).toISOString() + '</td></tr>\n';
+                    }
+                } catch (error) {
+                    res += '<tr><td></td><td>' + p.substr(0, 10) + '...</td><tr/>\n';
+                }
+            }
+            if (timeinfo == '') {
+                timeinfo = '<tr><td>Expires:</td><td>-</td></td>\n';
+            }
+            return '<table>\n' + timeinfo + res + '</table>\n';
+        }
 
         async function sha256AndBase64(input) {
             // Convert the input string to ArrayBuffer
@@ -146,10 +237,19 @@
             console.log('new code_verifier', randomString);
             localStorage.setItem('zia_code_verifier', randomString);
 
-            $('span.code_verifier').text(randomString);
-
-            sha256AndBase64(randomString).then(v => $('input.code_challenge').val(v));
+            load_verifier_fields()
             return false;
+        }
+
+        function load_verifier_fields() {
+            var code_verifier = localStorage.getItem('zia_code_verifier');
+            $('input.code_verifier').val(code_verifier || '');
+            $('span.code_verifier').text(code_verifier || '');
+            if (code_verifier) {
+                sha256AndBase64(code_verifier).then(v => $('input.code_challenge').val(v));
+            } else {
+                $('input.code_challenge').val('');
+            }
         }
 
         function exchange_code_to_token() {
@@ -159,8 +259,9 @@
 
             getToken(code, codeVerifier).then(token => {
                 if (token) {
-                    localStorage.removeItem('zia_code_verifier');
                     localStorage.setItem('zia_jwt', JSON.stringify(token));
+                    localStorage.removeItem('zia_code_verifier');
+                    load_verifier_fields();
                     location.assign(guess_redirect_url()); // to remove code from address bar
                 }
             });
@@ -193,7 +294,6 @@
 
         function query_backend() {
             var accessToken = JSON.parse(localStorage.getItem('zia_jwt') || '{}').access_token || '';
-
             var url = 'https://zia-be.bin932.com:2443/hello/2';
             return fetch(url, {
                 method: "GET",
@@ -216,73 +316,14 @@
                 });
         }
 
-        function display_local_storage() {
-            var jwt = localStorage.getItem('zia_jwt');
-            var ui = localStorage.getItem('zia_jwt_userinfo');
-            var report = '';
-            if (jwt) {
-                report += 'JWT:\n';
-                report += JSON.stringify(JSON.parse(jwt), null, 2);
-                report += '\n\n';
-
-                report += 'AccessToken (decoded)\n';
-                report += decode_token(JSON.parse(jwt).access_token);
-                report += '\n';
-
-                report += 'RefreshToken (decoded)\n';
-                report += decode_token(JSON.parse(jwt).refresh_token);
-                report += '\n';
-
-                report += 'IDToken (decoded)\n';
-                report += decode_token(JSON.parse(jwt).id_token);
-                report += '\n';
-
-            }
-            if (ui) {
-                report += 'User Info:\n';
-                report += JSON.stringify(JSON.parse(ui), null, 2);
-                report += '\n';
-            }
-            $('pre.local_storage_report').text(report);
-        }
-
-        function decode_token(s) {
-            var parts = s.split('\.');
-            var res = '';
-            var timeinfo = '';
-            for (var i = 0; i < parts.length; i++) {
-                var p = parts[i];
-                try {
-                    var j = JSON.parse(atob(p));
-                    res += JSON.stringify(j, null, 2) + '\n';
-                    if (j.auth_time) {
-                        timeinfo += 'Auth Time: ' + new Date(j.auth_time * 1000).toISOString() + '\n';
-                    }
-                    if (j.exp) {
-                        timeinfo += 'Expires  : ' + new Date(j.exp * 1000).toISOString() + '\n';
-                    }
-                    if (j.iat) {
-                        timeinfo += 'Issued   : ' + new Date(j.iat * 1000).toISOString() + '\n';
-                    }
-                } catch (error) {
-                    res += '- ' + p.substr(0, 10) + '...\n';
-                }
-            }
-            return timeinfo + res;
-        }
-
-        console.log("Loaded " + location.href);
-
+        print_tokens();
+        load_verifier_fields();
         $('input.redirect_uri').val(guess_redirect_url());
-        $('input.code_verifier').val(localStorage.getItem('zia_code_verifier'));
-
         var matches = location.href.match('code=([^&]+)');
         if (matches) {
             $('input.code').val(matches[1]);
         }
-
-        display_local_storage();
-
+        console.log("Loaded " + location.href);
     </script>
 </body>
 
