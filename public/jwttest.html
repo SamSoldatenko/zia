@@ -29,10 +29,6 @@
 </head>
 
 <body>
-
-    <h2>Tokens in local storage</h2>
-    <div class="tokens_report"></div>
-
     <h2>Authorization code grants with Proof Key for Code Exchange (PKCE)</h2>
     <form method="get" action="https://zia.auth.eu-central-1.amazoncognito.com/oauth2/authorize">
         <table>
@@ -97,23 +93,56 @@
     <hr />
     <button onclick="load_user_info()">Load user info</button>
     <button onclick="query_backend()">Query backend</button>
-    </div>
+
+    <h2>Tokens in local storage</h2>
+    <div class="tokens_report"></div>
+
     <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
         integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
     <script type="application/javascript" language="javascript">
+        function read_tokens() {
+            return JSON.parse(localStorage.getItem('zia_tokens') || '[]');
+        }
+
+        function write_tokens(tokens) {
+            localStorage.setItem('zia_tokens', JSON.stringify(tokens));
+        }
+
+        function parse_payload(s) {
+            var parts = s.split('\.');
+            return JSON.parse(atob(parts[1]));
+        }
+
+        function merge_tokens(tokens, token) {
+            var payload = parse_payload(token.access_token);
+            for (var i = 0; i < tokens.length; i++) {
+                var t = tokens[i]
+                var p = parse_payload(t.access_token);
+                if (payload.iss == p.iss && payload.client_id == p.client_id && payload.scope == p.scope) {
+                    var result = [...tokens];
+                    result[i] = token;
+                    return result;
+                }
+            }
+            return [...tokens, token];
+        }
+
         function print_tokens() {
-            // var tokens = JSON.parse(localStorage.getItem('zia_tokens') || '[]');
-            var tokens = [JSON.parse(localStorage.getItem('zia_jwt'))];
+            var tokens = read_tokens();
             var html = '';
             for (var i = 0; i < tokens.length; i++) {
                 var token = tokens[i];
                 var s = JSON.stringify(token, null, 2)
                     .replaceAll('\n', '<br/>\n')
                     .replaceAll('\n  ', '\n&nbsp;&nbsp;')
-                    .replaceAll(new RegExp(': "(([^"]{25})[^"]{10,})"', 'ig'), ': "$2...<button title="Copy to clipboard" onclick=\'copy_to_buffer("$1")\'>...</button>"')
+                    .replaceAll(new RegExp(': "(([^"]{25})[^"]{10,}([^"]{6}))"', 'ig'), ': "$2...$3<button title="Copy to clipboard" onclick=\'copy_to_buffer("$1")\'>...</button>"')
                     ;
+                html += '<hr size="1"/><div>\n';
                 html += s + '<br/><br/>\n';
                 html += '<button onclick="$(\'#token_detail_' + i + '\').toggle()">Details</button>\n';
+                html += '<button onclick="refresh_token(' + i + ')">Refresh Token</button>\n';
+                html += '</div>\n';
+
                 html += '<div style="display:none" id="token_detail_' + i + '">\n';
                 html += '<b>ID Token:</b><br/>\n';
                 html += decode_token(token.id_token)
@@ -259,7 +288,8 @@
 
             getToken(code, codeVerifier).then(token => {
                 if (token) {
-                    localStorage.setItem('zia_jwt', JSON.stringify(token));
+                    var tokens = merge_tokens(read_tokens(), token);
+                    write_tokens(tokens);
                     localStorage.removeItem('zia_code_verifier');
                     load_verifier_fields();
                     location.assign(guess_redirect_url()); // to remove code from address bar
@@ -267,8 +297,52 @@
             });
         }
 
+        function refresh_token(index) {
+            var token = read_tokens()[index];
+            var payload = parse_payload(token.access_token);
+            var url = "https://zia.auth.eu-central-1.amazoncognito.com/oauth2/token";
+            var formData = new URLSearchParams();
+            formData.append("redirect_uri", guess_redirect_url())
+            formData.append("grant_type", "refresh_token");
+            formData.append("client_id", payload.client_id);
+            formData.append("refresh_token", token.refresh_token);
+            return fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    // "Authorization2": "Bearer " + token.access_token,
+                },
+                body: formData
+            })
+                .then(r => {
+                    if (r.ok) {
+                        return r.json().then(data => {
+                            console.log(JSON.stringify(data, null, 2));
+                            var list = read_tokens();
+                            var matchingTokens = list.filter(t => t.refresh_token == token.refresh_token);
+                            matchingTokens.forEach(t => {
+                                t.id_token = data.id_token;
+                                t.access_token = data.access_token;
+                            });
+                            if (matchingTokens.length == 0) {
+                                token.id_token = data.id_token;
+                                token.access_token = data.access_token;
+                                list = [...list, token]
+                            }
+                            write_tokens(list);
+                            print_tokens();
+                            return data;
+                        });
+                    } else {
+                        console.error(r);
+                        r.text().then(console.error);
+                        return null;
+                    }
+                });
+        }
+
         function load_user_info() {
-            var accessToken = JSON.parse(localStorage.getItem('zia_jwt') || '{}').access_token || '';
+            var accessToken = read_tokens()[0].access_token || '';
             var url = 'https://zia.auth.eu-central-1.amazoncognito.com/oauth2/userInfo';
             return fetch(url, {
                 method: "GET",
@@ -282,7 +356,9 @@
                         return r.text().then(t => {
                             console.log(t);
                             localStorage.setItem('zia_jwt_userinfo', t);
-                            return JSON.parse(t);
+                            var u = JSON.parse(t);
+                            alert(JSON.stringify(u, null, 2));
+                            return u;
                         });
                     } else {
                         console.error('Failed to load user info: ', r);
@@ -293,7 +369,7 @@
         }
 
         function query_backend() {
-            var accessToken = JSON.parse(localStorage.getItem('zia_jwt') || '{}').access_token || '';
+            var accessToken = read_tokens()[0].access_token;
             var url = 'https://zia-be.bin932.com:2443/hello/2';
             return fetch(url, {
                 method: "GET",
@@ -306,6 +382,7 @@
                         return r.text().then(body => {
                             console.log('Backend response');
                             console.log(body);
+                            alert(body);
                             return body;
                         });
                     } else {
@@ -316,14 +393,19 @@
                 });
         }
 
-        print_tokens();
-        load_verifier_fields();
-        $('input.redirect_uri').val(guess_redirect_url());
-        var matches = location.href.match('code=([^&]+)');
-        if (matches) {
-            $('input.code').val(matches[1]);
+        function init() {
+            print_tokens();
+            load_verifier_fields();
+            $('input.redirect_uri').val(guess_redirect_url());
+            var matches = location.href.match('code=([^&]+)');
+            if (matches) {
+                $('input.code').val(matches[1]);
+            }
+            console.log("Loaded " + location.href);
         }
-        console.log("Loaded " + location.href);
+
+        $(init);
+
     </script>
 </body>
 
