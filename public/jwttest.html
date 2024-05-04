@@ -92,7 +92,9 @@
     </table>
     <hr />
     <button onclick="load_user_info()">Load user info</button>
-    <button onclick="query_backend()">Query backend</button>
+    <button onclick="query_backend(2)">Query hello/2 (public)</button>
+    <button onclick="query_backend(3)">Query hello/3 (authorized only)</button>
+    <button onclick="query_backend(4)">Query hello/4 (admin)</button>
 
     <h2>Tokens in local storage</h2>
     <div class="tokens_report"></div>
@@ -368,9 +370,9 @@
                 });
         }
 
-        function query_backend() {
+        function query_backend(n) {
             var accessToken = read_tokens()[0].access_token;
-            var url = 'https://zia-be.bin932.com:2443/hello/2';
+            var url = 'https://zia-be.bin932.com:2443/hello/' + n;
             return fetch(url, {
                 method: "GET",
                 headers: {
