@@ -95,6 +95,7 @@
     <button onclick="query_backend(2)">Query hello/2 (public)</button>
     <button onclick="query_backend(3)">Query hello/3 (authorized only)</button>
     <button onclick="query_backend(4)">Query hello/4 (admin)</button>
+    <button onclick="query_backend_2('/accounts/me')">Query /accounts/me</button>
 
     <h2>Tokens in local storage</h2>
     <div class="tokens_report"></div>
@@ -137,7 +138,7 @@
                 var s = JSON.stringify(token, null, 2)
                     .replaceAll('\n', '<br/>\n')
                     .replaceAll('\n  ', '\n&nbsp;&nbsp;')
-                    .replaceAll(new RegExp(': "(([^"]{25})[^"]{10,}([^"]{6}))"', 'ig'), ': "$2...$3<button title="Copy to clipboard" onclick=\'copy_to_buffer("$1")\'>...</button>"')
+                    .replaceAll(new RegExp(': "(([^"]{25})[^"]{10,}([^"]{6}))"', 'ig'), ': "$2...<button title="Copy to clipboard" onclick=\'copy_to_buffer("$1")\'>...</button>"')
                     ;
                 html += '<hr size="1"/><div>\n';
                 html += s + '<br/><br/>\n';
@@ -234,6 +235,7 @@
         }
 
         function getToken(code, codeVerifier) {
+                    // https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_SSH5Zn4xD
             var url = "https://zia.auth.eu-central-1.amazoncognito.com/oauth2/token";
             var formData = new URLSearchParams();
             formData.append("redirect_uri", guess_redirect_url())
@@ -372,7 +374,32 @@
 
         function query_backend(n) {
             var accessToken = read_tokens()[0].access_token;
-            var url = 'https://zia-be.bin932.com:2443/hello/' + n;
+            var url = 'https://zia-be.bin932.com:3150/hello/' + n;
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + accessToken,
+                },
+            })
+                .then(r => {
+                    if (r.ok) {
+                        return r.text().then(body => {
+                            console.log('Backend response');
+                            console.log(body);
+                            alert(body);
+                            return body;
+                        });
+                    } else {
+                        console.error('Backend request failed:', r);
+                        r.text().then(console.error);
+                        return null;
+                    }
+                });
+        }
+
+        function query_backend_2(path) {
+            var accessToken = read_tokens()[0].access_token;
+            var url = 'https://zia-be.bin932.com:3150' + path;
             return fetch(url, {
                 method: "GET",
                 headers: {
