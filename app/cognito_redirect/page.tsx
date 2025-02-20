@@ -1,9 +1,9 @@
 'use client';
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useZia } from "../ui/ZiaContext";
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function CognitoRedirect() {
+function CognitoRedirect() {
     const router = useRouter();
     const params = useSearchParams();
     const { exchangeCodeToToken, oauthUrl } = useZia();
@@ -22,5 +22,13 @@ export default function CognitoRedirect() {
         <main className="flex min-h-screen flex-col items-center justify-between p-24">
             <p>Processing login...</p>
         </main>
+    );
+}
+
+export default function Page() {
+    return (
+        <Suspense>
+            <CognitoRedirect />
+        </Suspense>
     );
 }
