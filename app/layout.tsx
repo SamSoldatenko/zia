@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import Auth from "./ui/Auth";
+import { ZiaProvider } from "./ui/ZiaContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,13 +17,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <header className="flex flex-col items-center justify-between p-5">
-          <div>Test header</div>
-        </header>
-        {children}
-      </body>
-    </html>
+    <ZiaProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          <header className="flex flex-col items-center justify-between p-5">
+            <div>Test header</div>
+            <Auth />
+          </header>
+          {children}
+        </body>
+      </html>
+    </ZiaProvider>
   );
 }
