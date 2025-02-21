@@ -1,13 +1,13 @@
 'use client';
 import { useState } from "react";
 import { Divider, Menu, MenuItem } from "@mui/material";
-import { User, LogIn, LogOut, KeyRound, Unplug, EarthLock } from "lucide-react";
+import { User, LogIn, LogOut, KeyRound, Unplug, EarthLock, UserRoundCheck } from "lucide-react";
 import { useZia } from "./ZiaContext";
 
 export default function Auth() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openedWithAlt, setOpenedWithAlt] = useState<boolean>(false);
-  const {switchBackend, doLogin, doLogout, backendUrl} = useZia();
+  const {switchBackend, doLogin, doLogout, backendUrl, isLoggedIn} = useZia();
   const open = Boolean(anchorEl);
   const isDevBackend = (backendUrl !== 'https://zia-be.bin932.com:3150');
 
@@ -47,7 +47,7 @@ export default function Auth() {
         onClick={handleClick}
         className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 shadow-lg hover:bg-gray-300 transition"
       >
-        <User size={24} />
+        {isLoggedIn ? <UserRoundCheck size={24} /> : <User size={24} />}
       </button>
       <Menu
         anchorEl={anchorEl}

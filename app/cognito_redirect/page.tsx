@@ -11,12 +11,12 @@ function CognitoRedirect() {
     useEffect(() => {
         const code = params.get('code');
         if (!code) return;
-        if (!oauthUrl) return; // we need useEffect finished in ZiaContext before we call exchangeCodeToToken
+        // if (!oauthUrl) return; // we need useEffect finished in ZiaContext before we call exchangeCodeToToken
         exchangeCodeToToken(code + '')
             .then(token => {
                 router.replace('/');
             }, console.error);
-    }, [exchangeCodeToToken, oauthUrl, params, router]);
+    });
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-between p-24">

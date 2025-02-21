@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 interface ZiaContextProps {
   backendUrl: string | null;
   oauthUrl: string | null; // url to .well-known/openid-configuration
+  isLoggedIn: boolean;
 
   switchBackend: (url: string) => Promise<void>;
   getAccessToken: () => Promise<string>;
@@ -24,6 +25,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
   const [tokentEndpoint, setTokenEndpoint] = useState<string>('');
   const [userInfoEndpoint, setUserInfoEndpoint] = useState<string>('');
   const [endSessionEndpoint, setEndSessionEndpoint] = useState<string>('');
+  const [isLoggedIn, setLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
     const storedConfig = JSON.parse(localStorage.getItem('zia_config') || 'null');
@@ -42,6 +44,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
     setTokenEndpoint(token_endpoint);
     setUserInfoEndpoint(userinfo_endpoint);
     setEndSessionEndpoint(end_session_endpoint);
+    setLoggedIn(hasValidToken(issuer, client_id));
   }, []);
 
   const switchBackend = async (api_url: string) => {
@@ -83,6 +86,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
     setTokenEndpoint(token_endpoint);
     setUserInfoEndpoint(userinfo_endpoint);
     setEndSessionEndpoint(end_session_endpoint);
+    setLoggedIn(hasValidToken(oauth_issuer, client_id));
   };
 
   const doLogin = async () => {
@@ -143,6 +147,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
     const merged = merge_tokens(tokens, token);
     localStorage.setItem('zia_tokens', JSON.stringify(merged));
     localStorage.removeItem('zia_code_verifier');
+    setLoggedIn(hasValidToken(issuerId, clientId));
     return token;
   };
 
@@ -163,6 +168,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
         tokens[index].id_token = new_id_token;
         tokens[index].access_token = new_access_token;
         localStorage.setItem('zia_tokens', JSON.stringify(tokens));
+        setLoggedIn(true);
         return new_access_token;
       }
     }
@@ -188,7 +194,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <ZiaContext.Provider value={{ backendUrl, oauthUrl, switchBackend, getAccessToken, doLogin, doLogout, exchangeCodeToToken }}>
+    <ZiaContext.Provider value={{ backendUrl, oauthUrl, switchBackend, getAccessToken, doLogin, doLogout, exchangeCodeToToken, isLoggedIn }}>
       {children}
     </ZiaContext.Provider>
   );
@@ -243,16 +249,29 @@ function loadDefaultConfig() {
   };
 };
 
-function merge_tokens(tokens:any[], token:any) {
+function merge_tokens(tokens: any[], token: any) {
   var payload = parse_payload(token.access_token);
   for (var i = 0; i < tokens.length; i++) {
-      var t = tokens[i]
-      var p = parse_payload(t.access_token);
-      if (payload.iss == p.iss && payload.client_id == p.client_id) {
-          var result = [...tokens];
-          result[i] = token;
-          return result;
-      }
+    var t = tokens[i]
+    var p = parse_payload(t.access_token);
+    if (payload.iss == p.iss && payload.client_id == p.client_id) {
+      var result = [...tokens];
+      result[i] = token;
+      return result;
+    }
   }
   return [...tokens, token];
+}
+
+function hasValidToken(issuerId: string, clientId: string) {
+  const tokens = JSON.parse(localStorage.getItem('zia_tokens') || '[]');
+  for (let index = 0; index < tokens.length; index++) {
+    const { access_token, refresh_token } = tokens[index];
+    const { iss, exp, client_id } = parse_payload(access_token);
+    if (iss === issuerId && client_id === clientId) {
+      const isValid = (exp * 1000 > new Date().getTime());
+      return isValid;
+    }
+  }
+  return false;
 }

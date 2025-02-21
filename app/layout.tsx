@@ -19,12 +19,14 @@ export default function RootLayout({
   return (
     <ZiaProvider>
       <html lang="en">
-        <body className={inter.className}>
-          <header className="flex flex-col items-center justify-between p-5">
-            <div>Test header</div>
+        <body className={`min-h-screen flex flex-col ${inter.className}`}>
+          <header className="h-16 justify-between p-5">
             <Auth />
           </header>
           {children}
+          <footer className="h-16 bg-gray-100 p-5 text-center">
+            Zia app
+          </footer>
         </body>
       </html>
     </ZiaProvider>
