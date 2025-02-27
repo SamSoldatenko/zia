@@ -1,13 +1,13 @@
 'use client';
 import { useState } from "react";
 import { Divider, Menu, MenuItem } from "@mui/material";
-import { User, LogIn, LogOut, KeyRound, Unplug, EarthLock, UserRoundCheck } from "lucide-react";
+import { User, LogIn, LogOut, KeyRound, Unplug, EarthLock, UserRoundCheck, Key } from "lucide-react";
 import { useZia } from "./ZiaContext";
 
 export default function Auth() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openedWithAlt, setOpenedWithAlt] = useState<boolean>(false);
-  const {switchBackend, doLogin, doLogout, backendUrl, isLoggedIn} = useZia();
+  const {switchBackend, doLogin, doLogout, backendUrl, isLoggedIn, getAccessToken} = useZia();
   const open = Boolean(anchorEl);
   const isDevBackend = (backendUrl !== 'https://zia-be.bin932.com:3150');
 
@@ -29,6 +29,12 @@ export default function Auth() {
   const handleLogout = () => {
     doLogout();
     handleClose();
+  };
+
+  const getAccessKey = () => {
+    getAccessToken()
+      .then(console.log, console.error)
+      .then(handleClose);
   };
 
   const connectToDev = () => {
@@ -65,6 +71,9 @@ export default function Auth() {
         {(isDevBackend || openedWithAlt) && (
           <>
             <Divider />
+            <MenuItem onClick={getAccessKey}>
+              <Key size={18} className="mr-2" /> Get Access Key
+            </MenuItem>
             <MenuItem onClick={connectToDev}>
               <Unplug size={18} className="mr-2" /> Dev Backend
             </MenuItem>
