@@ -37,6 +37,7 @@ export default function Auth(): React.ReactElement {
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>): void {
     setAnchorEl(event.currentTarget);
+    if (event.altKey) setAltKeyPressed(true);
   }
 
   function handleClose(): void {
