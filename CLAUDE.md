@@ -50,6 +50,19 @@ npm test -- __tests__/Auth.test.tsx  # Run a single test file
 - Default backend auto-selected: dev (`localhost:8080`) when running on `localhost:3000`, otherwise prod
 
 ### Styling
-- Tailwind CSS for utility classes (supports dark mode via `dark:` prefix)
-- MUI (Material UI) for components (Menu, MenuItem, Alert, Button, etc.)
-- Lucide React for icons
+Uses a hybrid MUI + Tailwind approach:
+
+- **MUI (Material UI)** - Complex interactive components:
+  - Drawer, List components (NavBar mobile menu)
+  - Menu, MenuItem (Auth dropdown)
+  - TextField, InputAdornment (SearchBox)
+  - ToggleButton, ToggleButtonGroup (ThemeToggle)
+  - Alert, Button (BackendMismatchBanner)
+- **Tailwind CSS** - Layout, spacing, typography, simple styling:
+  - Use `dark:` prefix for dark mode variants
+  - Responsive breakpoints via `md:`, `lg:` prefixes
+- **Lucide React** - All icons (not MUI icons)
+- **Dark mode** - Managed by SettingsContext:
+  - MUI components get theme via ThemeProvider
+  - Tailwind gets `dark` class on `<html>` element
+  - Both systems stay in sync automatically

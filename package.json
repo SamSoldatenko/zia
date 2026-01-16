@@ -10,10 +10,11 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^6.5.0",
     "@mui/material": "^6.5.0",
+    "@mui/material-nextjs": "^7.3.7",
     "lucide-react": "^0.475.0",
     "next": "^16.1.1",
     "react": "^19.2.3",
