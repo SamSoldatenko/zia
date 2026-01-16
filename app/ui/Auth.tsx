@@ -37,6 +37,7 @@ export default function Auth(): React.ReactElement {
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>): void {
     setAnchorEl(event.currentTarget);
+    if (event.altKey) setAltKeyPressed(true);
   }
 
   function handleClose(): void {
@@ -68,18 +69,18 @@ export default function Auth(): React.ReactElement {
   }
 
   return (
-    <div className="fixed top-4 right-4">
+    <div className="relative">
       <button
         onClick={handleClick}
-        className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
       >
-        {isLoggedIn ? <UserRoundCheck size={24} /> : <User size={24} />}
+        {isLoggedIn ? <UserRoundCheck size={20} /> : <User size={20} />}
       </button>
       <Menu
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <MenuItem onClick={handleLogin}>

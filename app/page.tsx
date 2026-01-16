@@ -1,20 +1,20 @@
 'use client';
 
-import { Alert } from '@mui/material';
-import { useServerConfig } from './ui/context/ServerConfigContext';
+import { useState } from 'react';
+import SearchBox from './ui/SearchBox';
+import ZiaView from './ui/ZiaView';
 
-export default function Home() {
-  const { serverConfig } = useServerConfig();
+export default function Home(): React.ReactElement {
+  const [searchQuery, setSearchQuery] = useState('');
+
   return (
-    <main className="flex-1 p-5 max-w-[20cm] w-full mx-auto">
-      <Alert severity="error" onClose={() => {}}>
-        test error message
-      </Alert>
-      <div>
-        <a href="jwttest.html">JWT debug</a>
-      </div>
-      <div>Server URL: {serverConfig?.backendUrl}
-      </div>
+    <main className="flex-1 flex flex-col p-5 max-w-7xl w-full mx-auto gap-4">
+      <section>
+        <SearchBox value={searchQuery} onChange={setSearchQuery} />
+      </section>
+      <section className="flex-1 flex">
+        <ZiaView query={searchQuery} />
+      </section>
     </main>
   );
 }

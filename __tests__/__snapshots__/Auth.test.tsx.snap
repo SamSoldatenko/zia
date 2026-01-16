@@ -3,21 +3,21 @@
 exports[`Auth component > renders user button 1`] = `
 <DocumentFragment>
   <div
-    class="fixed top-4 right-4"
+    class="relative"
   >
     <button
-      class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+      class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
     >
       <svg
         class="lucide lucide-user"
         fill="none"
-        height="24"
+        height="20"
         stroke="currentColor"
         stroke-linecap="round"
         stroke-linejoin="round"
         stroke-width="2"
         viewBox="0 0 24 24"
-        width="24"
+        width="20"
         xmlns="http://www.w3.org/2000/svg"
       >
         <path

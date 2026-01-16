@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Auth from './ui/Auth';
 import { ZiaProvider } from './ui/context/ZiaProvider';
-import BackendMismatchBanner from './ui/BackendMismatchBanner';
+import NavBar from './ui/NavBar';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,12 +20,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`min-h-screen flex flex-col ${inter.className}`}>
         <ZiaProvider>
-          <header className="p-5">
-            <div className="max-w-[20cm] w-full mx-auto">
-              <BackendMismatchBanner />
-            </div>
-            <Auth />
-          </header>
+          <NavBar />
           {children}
           <footer className="h-16 bg-gray-100 dark:bg-gray-800 p-5 text-center">
             Zia app
