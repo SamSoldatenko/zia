@@ -131,6 +131,7 @@ export const ZiaProvider = ({ children }: { children: React.ReactNode }) => {
     formData.append("code", code);
     formData.append("grant_type", "authorization_code");
     formData.append("code_verifier", code_verifier);
+    console.log(`Code: ${code}, code_verifier: ${code_verifier}`);
 
     const response = await fetch(tokentEndpoint, {
       method: "POST",

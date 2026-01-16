@@ -1,12 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Auth component rendering 1`] = `
+exports[`Auth component > renders user button 1`] = `
 <DocumentFragment>
   <div
     class="fixed top-4 right-4"
   >
     <button
-      class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 shadow-lg hover:bg-gray-300 transition"
+      class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 shadow-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
     >
       <svg
         class="lucide lucide-user"
