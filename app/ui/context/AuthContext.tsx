@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const url = new URL(serverConfig.authorizationEndpoint);
     url.searchParams.set('client_id', service.client_id);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', service.scopes.join(' '));
+    url.searchParams.set('scope', 'openid email');
     url.searchParams.set('redirect_uri', getRedirectUri());
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
@@ -247,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const url = new URL(config.authorizationEndpoint);
         url.searchParams.set('client_id', service.client_id);
         url.searchParams.set('response_type', 'code');
-        url.searchParams.set('scope', service.scopes.join(' '));
+        url.searchParams.set('scope', 'openid email');
         url.searchParams.set('redirect_uri', redirectUri);
         url.searchParams.set('code_challenge', codeChallenge);
         url.searchParams.set('code_challenge_method', 'S256');
