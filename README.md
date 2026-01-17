@@ -1,10 +1,10 @@
-# Zia - Personal AI Assistant
+# Aiza - Personal AI Assistant
 
-Zia is a **hobby project** - a personal AI assistant designed to collect, organize, and intelligently process your private data. It uses a local LLM running on your own hardware, ensuring your sensitive information never leaves your control.
+Aiza is a **hobby project** - a personal AI assistant designed to collect, organize, and intelligently process your private data. It uses a local LLM running on your own hardware, ensuring your sensitive information never leaves your control.
 
 ## Target Users
 
-Zia is built for privacy-conscious individuals who:
+Aiza is built for privacy-conscious individuals who:
 
 - Want AI assistance without exposing personal data to cloud services
 - Are comfortable self-hosting a backend on a Raspberry Pi or similar device
@@ -13,13 +13,13 @@ Zia is built for privacy-conscious individuals who:
 
 ## Architecture
 
-Zia separates the user interface from data storage:
+Aiza separates the user interface from data storage:
 
 - [x] **Frontend (UI)**: Hosted on GitHub Pages - no self-hosting required. The UI contains no private data and can be used directly from the web.
 - [ ] **Backend**: Self-hosted on your own hardware (e.g., Raspberry Pi with encrypted HDD). All private data and LLM processing stays here.
 - [x] **Multi-backend support**: The frontend can switch between different backends (e.g., home vs. work) while preserving settings and authorizations for each.
 
-![Zia Backend](public/images/zia-be-photo.jpeg)
+![Aiza Backend](public/images/aiza-be-photo.jpeg)
 
 ## Security
 
@@ -38,7 +38,7 @@ Zia separates the user interface from data storage:
 
 ### Incoming Call Assistant
 
-When your phone rings, Zia shows contextual information about the caller:
+When your phone rings, Aiza shows contextual information about the caller:
 
 - Recent call history and communication summary
 - Personal relations (e.g., "Homer - borrowed leafblower 4.5 months ago")
@@ -47,7 +47,7 @@ When your phone rings, Zia shows contextual information about the caller:
 
 ### Proactive Shopping Assistant
 
-When you want to buy something (e.g., a used car), Zia works for you continuously:
+When you want to buy something (e.g., a used car), Aiza works for you continuously:
 
 - Monitors listings daily based on your vague preferences
 - Assesses and ranks options using AI judgment
@@ -56,8 +56,8 @@ When you want to buy something (e.g., a used car), Zia works for you continuousl
 
 ## Deployment
 
-- **UI**: [https://zia.bin932.com](https://zia.bin932.com) (automatically deployed from main branch)
-- **Backend**: [https://zia-be.bin932.com:3150/info.json](https://zia-be.bin932.com:3150/info.json)
+- **UI**: [https://aiza.bin932.com](https://aiza.bin932.com) (automatically deployed from main branch)
+- **Backend**: [https://aiza-be.bin932.com:3150/info.json](https://aiza-be.bin932.com:3150/info.json)
 
 ## Development
 

@@ -51,7 +51,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!serverId) return;
 
-    const stored = localStorage.getItem(`zia_settings:${serverId}`);
+    const stored = localStorage.getItem(`aiza_settings:${serverId}`);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -80,7 +80,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setSettings(prev => {
       const newSettings = { ...prev, theme };
       if (serverId) {
-        localStorage.setItem(`zia_settings:${serverId}`, JSON.stringify(newSettings));
+        localStorage.setItem(`aiza_settings:${serverId}`, JSON.stringify(newSettings));
       }
       return newSettings;
     });

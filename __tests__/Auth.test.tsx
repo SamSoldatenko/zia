@@ -1,7 +1,7 @@
 import { expect, test, describe, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import Auth from '../app/ui/Auth'
-import { ZiaProvider } from '@/app/ui/context/ZiaProvider'
+import { AizaProvider } from '@/app/ui/context/AizaProvider'
 
 describe('Auth component', () => {
   afterEach(() => {
@@ -9,13 +9,13 @@ describe('Auth component', () => {
   })
 
   test('renders user button', () => {
-    const { asFragment } = render(<ZiaProvider><Auth /></ZiaProvider>)
+    const { asFragment } = render(<AizaProvider><Auth /></AizaProvider>)
     expect(screen.getByRole('button')).toBeDefined()
     expect(asFragment()).toMatchSnapshot();
   })
 
   test('dev options hidden by default when menu is open', () => {
-    render(<ZiaProvider><Auth /></ZiaProvider>)
+    render(<AizaProvider><Auth /></AizaProvider>)
     fireEvent.click(screen.getByRole('button'))
 
     expect(screen.getByText('Login')).toBeDefined()
@@ -25,7 +25,7 @@ describe('Auth component', () => {
   })
 
   test('dev options appear when Alt key is pressed', () => {
-    render(<ZiaProvider><Auth /></ZiaProvider>)
+    render(<AizaProvider><Auth /></AizaProvider>)
     fireEvent.click(screen.getByRole('button'))
 
     expect(screen.queryByText('Dev Backend')).toBeNull()
@@ -38,7 +38,7 @@ describe('Auth component', () => {
   })
 
   test('dev options appear on Alt press and disappear on release', async () => {
-    render(<ZiaProvider><Auth /></ZiaProvider>)
+    render(<AizaProvider><Auth /></AizaProvider>)
     fireEvent.click(screen.getByRole('button'))
 
     expect(screen.queryByText('Dev Backend')).toBeNull()

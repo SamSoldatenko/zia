@@ -53,7 +53,7 @@ export default function NavBar(): React.ReactElement {
               {drawerOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <Link href="/" className="text-xl font-bold text-gray-900 dark:text-white">
-              ZIA
+              AIZA
             </Link>
             <div className="hidden md:flex items-center space-x-1 ml-4">
               {navItems.map((item) => (
@@ -84,7 +84,7 @@ export default function NavBar(): React.ReactElement {
         }}
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <span className="text-xl font-bold text-gray-900 dark:text-white">ZIA</span>
+          <span className="text-xl font-bold text-gray-900 dark:text-white">AIZA</span>
         </div>
         <List>
           {navItems.map((item) => {

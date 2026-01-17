@@ -45,11 +45,11 @@ function parseJwtPayload(token: string): { iss: string; exp: number; client_id: 
 
 function getStoredTokens(): any[] {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem('zia_tokens') || '[]');
+  return JSON.parse(localStorage.getItem('aiza_tokens') || '[]');
 }
 
 function setStoredTokens(tokens: any[]): void {
-  localStorage.setItem('zia_tokens', JSON.stringify(tokens));
+  localStorage.setItem('aiza_tokens', JSON.stringify(tokens));
 }
 
 function findTokenIndex(tokens: any[], issuer: string, clientId: string): number {
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       service: 'api',
       codeVerifier,
     };
-    localStorage.setItem('zia_pending_auth', JSON.stringify(pendingAuth));
+    localStorage.setItem('aiza_pending_auth', JSON.stringify(pendingAuth));
 
     const url = new URL(serverConfig.authorizationEndpoint);
     url.searchParams.set('client_id', service.client_id);
@@ -187,20 +187,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [serverConfig, getService]);
 
   const handleOAuthCallback = useCallback(async (code: string) => {
-    const pendingAuthStr = localStorage.getItem('zia_pending_auth');
+    const pendingAuthStr = localStorage.getItem('aiza_pending_auth');
     if (!pendingAuthStr) {
       throw new Error('No pending authentication found');
     }
 
     const pendingAuth: PendingAuth = JSON.parse(pendingAuthStr);
-    const storedBackendUrl = localStorage.getItem('zia_current_backend');
+    const storedBackendUrl = localStorage.getItem('aiza_current_backend');
 
     if (!storedBackendUrl) {
       throw new Error('No backend configured');
     }
 
     const id = new URL(storedBackendUrl).host;
-    const configStr = localStorage.getItem(`zia_backend:${id}`);
+    const configStr = localStorage.getItem(`aiza_backend:${id}`);
     if (!configStr) {
       throw new Error('Backend configuration not found');
     }
@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const merged = mergeToken(tokens, token);
     setStoredTokens(merged);
 
-    localStorage.removeItem('zia_pending_auth');
+    localStorage.removeItem('aiza_pending_auth');
     setIsLoggedIn(true);
   }, []);
 

@@ -30,7 +30,7 @@
 
 <body>
     <h2>Authorization code grants with Proof Key for Code Exchange (PKCE)</h2>
-    <form method="get" action="https://zia.auth.eu-central-1.amazoncognito.com/oauth2/authorize">
+    <form method="get" action="https://aiza.auth.eu-central-1.amazoncognito.com/oauth2/authorize">
         <table>
             <tr>
                 <td>client_id</td>
@@ -104,11 +104,11 @@
         integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
     <script type="application/javascript" language="javascript">
         function read_tokens() {
-            return JSON.parse(localStorage.getItem('zia_tokens') || '[]');
+            return JSON.parse(localStorage.getItem('aiza_tokens') || '[]');
         }
 
         function write_tokens(tokens) {
-            localStorage.setItem('zia_tokens', JSON.stringify(tokens));
+            localStorage.setItem('aiza_tokens', JSON.stringify(tokens));
         }
 
         function parse_payload(s) {
@@ -231,12 +231,12 @@
             if (location.host == 'localhost:3000') {
                 return 'http://localhost:3000/jwttest.html';
             }
-            return "https://zia.bin932.com/jwttest.html";
+            return "https://aiza.bin932.com/jwttest.html";
         }
 
         function getToken(code, codeVerifier) {
                     // https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_SSH5Zn4xD
-            var url = "https://zia.auth.eu-central-1.amazoncognito.com/oauth2/token";
+            var url = "https://aiza.auth.eu-central-1.amazoncognito.com/oauth2/token";
             var formData = new URLSearchParams();
             formData.append("redirect_uri", guess_redirect_url())
             formData.append("client_id", "41n5fausr4m817q9uko6rkb5ni")
@@ -268,14 +268,14 @@
         function generate_verifier() {
             var randomString = generateRandomString(40);
             console.log('new code_verifier', randomString);
-            localStorage.setItem('zia_code_verifier', randomString);
+            localStorage.setItem('aiza_code_verifier', randomString);
 
             load_verifier_fields()
             return false;
         }
 
         function load_verifier_fields() {
-            var code_verifier = localStorage.getItem('zia_code_verifier');
+            var code_verifier = localStorage.getItem('aiza_code_verifier');
             $('input.code_verifier').val(code_verifier || '');
             $('span.code_verifier').text(code_verifier || '');
             if (code_verifier) {
@@ -294,7 +294,7 @@
                 if (token) {
                     var tokens = merge_tokens(read_tokens(), token);
                     write_tokens(tokens);
-                    localStorage.removeItem('zia_code_verifier');
+                    localStorage.removeItem('aiza_code_verifier');
                     load_verifier_fields();
                     location.assign(guess_redirect_url()); // to remove code from address bar
                 }
@@ -304,7 +304,7 @@
         function refresh_token(index) {
             var token = read_tokens()[index];
             var payload = parse_payload(token.access_token);
-            var url = "https://zia.auth.eu-central-1.amazoncognito.com/oauth2/token";
+            var url = "https://aiza.auth.eu-central-1.amazoncognito.com/oauth2/token";
             var formData = new URLSearchParams();
             formData.append("redirect_uri", guess_redirect_url())
             formData.append("grant_type", "refresh_token");
@@ -347,7 +347,7 @@
 
         function load_user_info() {
             var accessToken = read_tokens()[0].access_token || '';
-            var url = 'https://zia.auth.eu-central-1.amazoncognito.com/oauth2/userInfo';
+            var url = 'https://aiza.auth.eu-central-1.amazoncognito.com/oauth2/userInfo';
             return fetch(url, {
                 method: "GET",
                 headers: {
@@ -359,7 +359,7 @@
                         console.log('User info');
                         return r.text().then(t => {
                             console.log(t);
-                            localStorage.setItem('zia_jwt_userinfo', t);
+                            localStorage.setItem('aiza_jwt_userinfo', t);
                             var u = JSON.parse(t);
                             alert(JSON.stringify(u, null, 2));
                             return u;
@@ -374,7 +374,7 @@
 
         function query_backend(n) {
             var accessToken = read_tokens()[0].access_token;
-            var url = 'https://zia-be.bin932.com:3150/hello/' + n;
+            var url = 'https://aiza-be.bin932.com:3150/hello/' + n;
             // var url = 'http://localhost:8080/hello/' + n;
             return fetch(url, {
                 method: "GET",
@@ -400,7 +400,7 @@
 
         function query_backend_2(path) {
             var accessToken = read_tokens()[0].access_token;
-            var url = 'https://zia-be.bin932.com:3150' + path;
+            var url = 'https://aiza-be.bin932.com:3150' + path;
             return fetch(url, {
                 method: "GET",
                 headers: {

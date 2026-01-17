@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import SearchBox from './ui/SearchBox';
-import ZiaView from './ui/ZiaView';
+import AizaView from './ui/AizaView';
 
 export default function Home(): React.ReactElement {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,7 +13,7 @@ export default function Home(): React.ReactElement {
         <SearchBox value={searchQuery} onChange={setSearchQuery} />
       </section>
       <section className="flex-1 flex">
-        <ZiaView query={searchQuery} />
+        <AizaView query={searchQuery} />
       </section>
     </main>
   );

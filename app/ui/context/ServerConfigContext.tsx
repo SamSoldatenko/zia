@@ -91,8 +91,8 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
         analytics: info.analytics,
       };
 
-      localStorage.setItem(`zia_backend:${id}`, JSON.stringify(config));
-      localStorage.setItem('zia_current_backend', backendUrl);
+      localStorage.setItem(`aiza_backend:${id}`, JSON.stringify(config));
+      localStorage.setItem('aiza_current_backend', backendUrl);
 
       setServerId(id);
       setServerConfig(config);
@@ -117,7 +117,7 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
   }, [serverConfig]);
 
   useEffect(() => {
-    const storedBackendUrl = localStorage.getItem('zia_current_backend');
+    const storedBackendUrl = localStorage.getItem('aiza_current_backend');
     const backendUrl = storedBackendUrl || getDefaultBackend();
     loadServerConfig(backendUrl);
   }, [loadServerConfig]);

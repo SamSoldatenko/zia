@@ -2,11 +2,11 @@
 
 import { GitBranch } from 'lucide-react';
 
-interface ZiaViewProps {
+interface AizaViewProps {
   query: string;
 }
 
-export default function ZiaView({ query }: ZiaViewProps): React.ReactElement {
+export default function AizaView({ query }: AizaViewProps): React.ReactElement {
   return (
     <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 min-h-[400px] flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
       <GitBranch size={64} strokeWidth={1} />

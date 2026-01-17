@@ -1,5 +1,5 @@
 export const DEFAULT_BACKENDS = {
-  prod: 'https://zia-be.bin932.com:3150',
+  prod: 'https://aiza-be.bin932.com:3150',
   dev: 'http://localhost:8080',
 } as const;
 

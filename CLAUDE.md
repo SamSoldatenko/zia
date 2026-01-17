@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zia is a personal AI assistant web application built with Next.js 16 (App Router), React 19, TypeScript, and AWS Cognito authentication.
+Aiza is a personal AI assistant web application built with Next.js 16 (App Router), React 19, TypeScript, and AWS Cognito authentication.
 
 ## Commands
 
@@ -19,9 +19,9 @@ npm test -- __tests__/Auth.test.tsx  # Run a single test file
 ## Architecture
 
 ### App Structure
-- **app/layout.tsx** - Root layout wraps entire app with `ZiaProvider` and renders `NavBar`
+- **app/layout.tsx** - Root layout wraps entire app with `AizaProvider` and renders `NavBar`
 - **app/ui/context/** - Modular context providers:
-  - **ZiaProvider.tsx** - Composes all providers (ServerConfig → Auth → Settings)
+  - **AizaProvider.tsx** - Composes all providers (ServerConfig → Auth → Settings)
   - **ServerConfigContext.tsx** - Backend configuration, fetches `/info.json` and OpenID config, detects URL mismatch
   - **AuthContext.tsx** - OAuth2/PKCE authentication, token management, silent auth for secondary services
   - **SettingsContext.tsx** - User settings (theme: light/dark/system), MUI theme provider
@@ -39,13 +39,13 @@ npm test -- __tests__/Auth.test.tsx  # Run a single test file
 ### Authentication Flow
 1. `login()` initiates PKCE flow, stores pending auth state, redirects to Cognito
 2. `/cognito_redirect` receives callback, calls `handleOAuthCallback()`
-3. Tokens stored in localStorage under `zia_tokens` (keyed by issuer + client_id)
+3. Tokens stored in localStorage under `aiza_tokens` (keyed by issuer + client_id)
 4. `getAccessToken(service)` returns valid token, auto-refreshes, or attempts silent auth for analytics service
 
 ### Backend Configuration
 - **app/config/backends.ts** - Default backend URLs and auto-detection logic
-- Server config stored in localStorage as `zia_backend:{serverId}`
-- Current backend stored as `zia_current_backend`
+- Server config stored in localStorage as `aiza_backend:{serverId}`
+- Current backend stored as `aiza_current_backend`
 - `connectTo(url)` fetches `/info.json` from backend, then OpenID config
 - Default backend auto-selected: dev (`localhost:8080`) when running on `localhost:3000`, otherwise prod
 
