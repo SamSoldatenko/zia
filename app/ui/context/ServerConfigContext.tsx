@@ -1,7 +1,10 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { getDefaultBackend } from '@/app/config/backends';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { getDefaultBackend, getBackendType, BackendType } from '@/app/config/backends';
+
+export type BackendStatus = 'checking' | 'ok' | 'error';
+export type { BackendType } from '@/app/config/backends';
 
 export interface ServiceConfig {
   url: string;
@@ -30,6 +33,8 @@ interface ServerConfigContextValue {
   isLoading: boolean;
   error: string | null;
   urlMismatch: boolean;
+  status: BackendStatus;
+  backendType: BackendType;
   connectTo: (url: string) => Promise<void>;
   getService: (name: 'api' | 'analytics') => ServiceConfig | null;
 }
@@ -51,13 +56,18 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [urlMismatch, setUrlMismatch] = useState(false);
+  const [status, setStatus] = useState<BackendStatus>('checking');
+  const [backendType, setBackendType] = useState<BackendType>('prod');
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   const loadServerConfig = useCallback(async (backendUrl: string) => {
     setIsLoading(true);
     setError(null);
+    setStatus('checking');
 
     try {
       const id = getServerId(backendUrl);
+      setBackendType(getBackendType(backendUrl));
 
       const infoResponse = await fetch(backendUrl + '/info.json');
       if (!infoResponse.ok) {
@@ -96,31 +106,55 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
 
       setServerId(id);
       setServerConfig(config);
+      setStatus('ok');
 
-      if (typeof window !== 'undefined' && config.web) {
-        setUrlMismatch(window.location.origin !== config.web);
-      }
+      setUrlMismatch(Boolean(config.web && window.location.origin !== config.web));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load backend');
+      setStatus('error');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const connectTo = useCallback(async (url: string) => {
-    await loadServerConfig(url);
-  }, [loadServerConfig]);
+  const connectTo = loadServerConfig;
 
-  const getService = useCallback((name: 'api' | 'analytics'): ServiceConfig | null => {
-    if (!serverConfig) return null;
-    return serverConfig[name] || null;
-  }, [serverConfig]);
+  const refreshConfig = useCallback(async () => {
+    // Re-query current backend to check if it's still online
+    // Don't read from localStorage - keep the backend selected in this tab
+    if (serverConfig?.backendUrl) {
+      await loadServerConfig(serverConfig.backendUrl);
+    }
+  }, [loadServerConfig, serverConfig?.backendUrl]);
+
+  const getService = useCallback(
+    (name: 'api' | 'analytics'): ServiceConfig | null => serverConfig?.[name] ?? null,
+    [serverConfig]
+  );
 
   useEffect(() => {
     const storedBackendUrl = localStorage.getItem('aiza_current_backend');
     const backendUrl = storedBackendUrl || getDefaultBackend();
     loadServerConfig(backendUrl);
   }, [loadServerConfig]);
+
+  useEffect(() => {
+    function handleVisibilityChange(): void {
+      if (document.visibilityState === 'visible') {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+          refreshConfig();
+        }, 300);
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [refreshConfig]);
 
   return (
     <ServerConfigContext.Provider
@@ -130,6 +164,8 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
         isLoading,
         error,
         urlMismatch,
+        status,
+        backendType,
         connectTo,
         getService,
       }}

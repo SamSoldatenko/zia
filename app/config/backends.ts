@@ -14,7 +14,12 @@ export function getDefaultBackend(): string {
   return DEFAULT_BACKENDS.prod;
 }
 
-// For backward compatibility
-export const DEFAULT_BACKEND = DEFAULT_BACKENDS.prod;
-
 export type BackendKey = keyof typeof DEFAULT_BACKENDS;
+
+export type BackendType = 'dev' | 'prod' | 'custom';
+
+export function getBackendType(url: string): BackendType {
+  if (url === DEFAULT_BACKENDS.dev) return 'dev';
+  if (url === DEFAULT_BACKENDS.prod) return 'prod';
+  return 'custom';
+}

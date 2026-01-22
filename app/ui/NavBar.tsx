@@ -8,6 +8,7 @@ import { Home, User, Bug, Info, Menu, X } from 'lucide-react';
 import Auth from './Auth';
 import NavLink from './NavLink';
 import BackendMismatchBanner from './BackendMismatchBanner';
+import BackendStatusIndicator from './BackendStatusIndicator';
 
 interface NavItem {
   label: string;
@@ -68,7 +69,10 @@ export default function NavBar(): React.ReactElement {
               ))}
             </div>
           </div>
-          <Auth />
+          <div className="flex items-center gap-2">
+            <BackendStatusIndicator />
+            <Auth />
+          </div>
         </div>
       </nav>
 

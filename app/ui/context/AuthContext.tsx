@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const silentAuthInProgress = useRef<Map<string, Promise<string | null>>>(new Map());
 
-  const checkLoginStatus = useCallback((service?: ServiceConfig) => {
+  const checkLoginStatus = useCallback((service?: ServiceConfig): boolean => {
     if (!serverConfig || !service) return false;
     const tokens = getStoredTokens();
     const index = findTokenIndex(tokens, serverConfig.issuer, service.client_id);
@@ -131,9 +131,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [serverConfig]);
 
   useEffect(() => {
-    const apiService = getService('api');
-    setIsLoggedIn(checkLoginStatus(apiService || undefined));
+    setIsLoggedIn(checkLoginStatus(getService('api') ?? undefined));
   }, [serverConfig, getService, checkLoginStatus]);
+
+  useEffect(() => {
+    function handleStorageChange(event: StorageEvent): void {
+      if (event.key === 'aiza_tokens') {
+        setIsLoggedIn(checkLoginStatus(getService('api') ?? undefined));
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [getService, checkLoginStatus]);
+
+  useEffect(() => {
+    const REFRESH_THRESHOLD_MS = 60 * 1000;
+
+    async function handleVisibilityChange(): Promise<void> {
+      if (document.visibilityState !== 'visible') return;
+
+      const apiService = getService('api');
+      if (!apiService || !serverConfig) return;
+
+      const tokens = getStoredTokens();
+      const tokenIndex = findTokenIndex(tokens, serverConfig.issuer, apiService.client_id);
+
+      if (tokenIndex < 0) {
+        setIsLoggedIn(false);
+        return;
+      }
+
+      const token = tokens[tokenIndex];
+      try {
+        const { exp } = parseJwtPayload(token.access_token);
+        const expiresIn = exp * 1000 - Date.now();
+        const shouldRefresh = expiresIn < REFRESH_THRESHOLD_MS && expiresIn > 0 && token.refresh_token;
+
+        if (shouldRefresh) {
+          const formData = new URLSearchParams();
+          formData.append('grant_type', 'refresh_token');
+          formData.append('client_id', apiService.client_id);
+          formData.append('refresh_token', token.refresh_token);
+
+          const response = await fetch(serverConfig.tokenEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData,
+          });
+
+          if (response.ok) {
+            const newToken = await response.json();
+            tokens[tokenIndex].access_token = newToken.access_token;
+            tokens[tokenIndex].id_token = newToken.id_token;
+            setStoredTokens(tokens);
+            setIsLoggedIn(true);
+            return;
+          }
+        }
+
+        setIsLoggedIn(isTokenValid(token));
+      } catch {
+        setIsLoggedIn(false);
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [serverConfig, getService]);
 
   const login = useCallback(async () => {
     if (!serverConfig || !serverId) {
@@ -229,7 +294,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const trySilentAuth = useCallback(async (service: ServiceConfig): Promise<string | null> => {
     if (!serverConfig || !serverId) return null;
 
-    const config = serverConfig;
+    // Capture config value for use in closures
+    const { authorizationEndpoint, tokenEndpoint } = serverConfig;
     const cacheKey = `${serverId}:${service.client_id}`;
 
     const existingPromise = silentAuthInProgress.current.get(cacheKey);
@@ -244,7 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const redirectUri = getRedirectUri();
         const state = generateRandomString(16);
 
-        const url = new URL(config.authorizationEndpoint);
+        const url = new URL(authorizationEndpoint);
         url.searchParams.set('client_id', service.client_id);
         url.searchParams.set('response_type', 'code');
         url.searchParams.set('scope', 'openid email');
@@ -287,7 +353,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             try {
               const token = await exchangeAuthCode(
-                config.tokenEndpoint,
+                tokenEndpoint,
                 service.client_id,
                 data.code,
                 codeVerifier
