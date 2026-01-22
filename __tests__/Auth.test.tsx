@@ -1,5 +1,5 @@
 import { expect, test, describe, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import Auth from '../app/ui/Auth'
 import { AizaProvider } from '@/app/ui/context/AizaProvider'
 
@@ -14,41 +14,26 @@ describe('Auth component', () => {
     expect(asFragment()).toMatchSnapshot();
   })
 
-  test('dev options hidden by default when menu is open', () => {
+  test('all menu items visible when menu is open', () => {
     render(<AizaProvider><Auth /></AizaProvider>)
     fireEvent.click(screen.getByRole('button'))
 
     expect(screen.getByText('Login')).toBeDefined()
     expect(screen.getByText('Logout')).toBeDefined()
-    expect(screen.queryByText('Dev Backend')).toBeNull()
-    expect(screen.queryByText('Get Access Key')).toBeNull()
-  })
-
-  test('dev options appear when Alt key is pressed', () => {
-    render(<AizaProvider><Auth /></AizaProvider>)
-    fireEvent.click(screen.getByRole('button'))
-
-    expect(screen.queryByText('Dev Backend')).toBeNull()
-
-    fireEvent.keyDown(window, { key: 'Alt' })
-
     expect(screen.getByText('Dev Backend')).toBeDefined()
-    expect(screen.getByText('Get Access Key')).toBeDefined()
     expect(screen.getByText('Prod Backend')).toBeDefined()
+    expect(screen.getByText('Get Access Key')).toBeDefined()
   })
 
-  test('dev options appear on Alt press and disappear on release', async () => {
+  test('backend selection items have correct selected state', () => {
     render(<AizaProvider><Auth /></AizaProvider>)
     fireEvent.click(screen.getByRole('button'))
 
-    expect(screen.queryByText('Dev Backend')).toBeNull()
+    const devBackendItem = screen.getByText('Dev Backend').closest('li')
+    const prodBackendItem = screen.getByText('Prod Backend').closest('li')
 
-    fireEvent.keyDown(window, { key: 'Alt' })
-    expect(screen.getByText('Dev Backend')).toBeDefined()
-
-    fireEvent.keyUp(window, { key: 'Alt' })
-    await waitFor(() => {
-      expect(screen.queryByText('Dev Backend')).toBeNull()
-    })
+    // Dev backend should be selected by default (test runs on localhost)
+    expect(devBackendItem?.classList.contains('Mui-selected')).toBe(true)
+    expect(prodBackendItem?.classList.contains('Mui-selected')).toBe(false)
   })
 })
