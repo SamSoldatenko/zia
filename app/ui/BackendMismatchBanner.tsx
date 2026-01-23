@@ -5,21 +5,22 @@ import { Alert, Button } from '@mui/material';
 import { useServerConfig } from './context/ServerConfigContext';
 
 export default function BackendMismatchBanner(): React.ReactElement | null {
-  const { urlMismatch, serverConfig } = useServerConfig();
+  const { aizaJson } = useServerConfig();
   const [currentOrigin, setCurrentOrigin] = useState('');
 
   useEffect(() => {
     setCurrentOrigin(window.location.origin);
   }, []);
 
-  if (!urlMismatch || !serverConfig?.web) {
+  const expectedUrl = aizaJson?.web;
+  const urlMismatch = expectedUrl && currentOrigin && currentOrigin !== expectedUrl;
+
+  if (!urlMismatch) {
     return null;
   }
 
-  const targetUrl = serverConfig.web;
-
   function handleNavigate(): void {
-    window.location.href = targetUrl;
+    window.location.href = expectedUrl!;
   }
 
   return (
@@ -28,11 +29,11 @@ export default function BackendMismatchBanner(): React.ReactElement | null {
       sx={{ mb: 2 }}
       action={
         <Button color="inherit" size="small" onClick={handleNavigate}>
-          Go to {serverConfig.web}
+          Go to {expectedUrl}
         </Button>
       }
     >
-      You&apos;re accessing from {currentOrigin} but this backend expects {serverConfig.web}.
+      You&apos;re accessing from {currentOrigin} but this backend expects {expectedUrl}.
     </Alert>
   );
 }

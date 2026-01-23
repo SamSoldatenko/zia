@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getDefaultBackend, getBackendType, BackendType } from '@/app/config/backends';
 
 export type BackendStatus = 'checking' | 'ok' | 'error';
@@ -12,162 +13,121 @@ export interface ServiceConfig {
   scopes: string[];
 }
 
-export interface ServerConfig {
-  name: string;
-  version: string;
-  web: string;
-  backendUrl: string;
-  openidConfiguration: string;
-  issuer: string;
-  authorizationEndpoint: string;
-  tokenEndpoint: string;
-  userInfoEndpoint: string;
-  endSessionEndpoint: string;
-  api: ServiceConfig;
+export interface AizaJson {
+  name?: string;
+  version?: string;
+  web?: string;
+  'openid-configuration': string;
+  client_id?: string;
+  api?: ServiceConfig;
   analytics?: ServiceConfig;
+}
+
+export interface OpenIdConfiguration {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint: string;
+  end_session_endpoint: string;
 }
 
 interface ServerConfigContextValue {
   serverId: string | null;
-  serverConfig: ServerConfig | null;
-  isLoading: boolean;
+  backendUrl: string | null;
+  aizaJson: AizaJson | null;
+  openIdConfig: OpenIdConfiguration | null;
   error: string | null;
-  urlMismatch: boolean;
   status: BackendStatus;
   backendType: BackendType;
-  connectTo: (url: string) => Promise<void>;
-  getService: (name: 'api' | 'analytics') => ServiceConfig | null;
+  connectTo: (url: string) => void;
 }
 
 const ServerConfigContext = createContext<ServerConfigContextValue | undefined>(undefined);
 
 function getServerId(url: string): string {
   try {
-    const parsed = new URL(url);
-    return parsed.host;
+    return new URL(url).host;
   } catch {
     return url;
   }
 }
 
+const OPENID_STALE_TIME = 10 * 60 * 1000; // 10 minutes
+
+async function fetchAizaJson(backendUrl: string): Promise<AizaJson> {
+  const response = await fetch(backendUrl + '/info.json');
+  if (!response.ok) {
+    throw new Error(`Cannot load ${backendUrl}/info.json`);
+  }
+  return response.json();
+}
+
+async function fetchOpenIdConfig(url: string): Promise<OpenIdConfiguration> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Cannot load ${url}`);
+  }
+  return response.json();
+}
+
 export function ServerConfigProvider({ children }: { children: React.ReactNode }) {
-  const [serverId, setServerId] = useState<string | null>(null);
-  const [serverConfig, setServerConfig] = useState<ServerConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [urlMismatch, setUrlMismatch] = useState(false);
-  const [status, setStatus] = useState<BackendStatus>('checking');
-  const [backendType, setBackendType] = useState<BackendType>('prod');
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
-
-  const loadServerConfig = useCallback(async (backendUrl: string) => {
-    setIsLoading(true);
-    setError(null);
-    setStatus('checking');
-
-    try {
-      const id = getServerId(backendUrl);
-      setBackendType(getBackendType(backendUrl));
-
-      const infoResponse = await fetch(backendUrl + '/info.json');
-      if (!infoResponse.ok) {
-        throw new Error(`Cannot load ${backendUrl}/info.json`);
-      }
-      const info = await infoResponse.json();
-
-      const openidUrl = info['openid-configuration'];
-      const openidResponse = await fetch(openidUrl);
-      if (!openidResponse.ok) {
-        throw new Error(`Cannot load ${openidUrl}`);
-      }
-      const openid = await openidResponse.json();
-
-      const config: ServerConfig = {
-        name: info.name || id,
-        version: info.version || '1.0.0',
-        web: info.web || '',
-        backendUrl,
-        openidConfiguration: openidUrl,
-        issuer: openid.issuer,
-        authorizationEndpoint: openid.authorization_endpoint,
-        tokenEndpoint: openid.token_endpoint,
-        userInfoEndpoint: openid.userinfo_endpoint,
-        endSessionEndpoint: openid.end_session_endpoint,
-        api: info.api || {
-          url: backendUrl,
-          client_id: info.client_id,
-          scopes: ['email', 'openid', 'phone'],
-        },
-        analytics: info.analytics,
-      };
-
-      localStorage.setItem(`aiza_backend:${id}`, JSON.stringify(config));
-      localStorage.setItem('aiza_current_backend', backendUrl);
-
-      setServerId(id);
-      setServerConfig(config);
-      setStatus('ok');
-
-      setUrlMismatch(Boolean(config.web && window.location.origin !== config.web));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load backend');
-      setStatus('error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const connectTo = loadServerConfig;
-
-  const refreshConfig = useCallback(async () => {
-    // Re-query current backend to check if it's still online
-    // Don't read from localStorage - keep the backend selected in this tab
-    if (serverConfig?.backendUrl) {
-      await loadServerConfig(serverConfig.backendUrl);
-    }
-  }, [loadServerConfig, serverConfig?.backendUrl]);
-
-  const getService = useCallback(
-    (name: 'api' | 'analytics'): ServiceConfig | null => serverConfig?.[name] ?? null,
-    [serverConfig]
-  );
+  const [backendUrl, setBackendUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const storedBackendUrl = localStorage.getItem('aiza_current_backend');
-    const backendUrl = storedBackendUrl || getDefaultBackend();
-    loadServerConfig(backendUrl);
-  }, [loadServerConfig]);
+    setBackendUrl(storedBackendUrl || getDefaultBackend());
+  }, []);
 
-  useEffect(() => {
-    function handleVisibilityChange(): void {
-      if (document.visibilityState === 'visible') {
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => {
-          refreshConfig();
-        }, 300);
-      }
+  const {
+    data: aizaJson,
+    isPending: aizaPending,
+    error: aizaError,
+    refetch: refetchAiza,
+  } = useQuery({
+    queryKey: ['aiza', backendUrl],
+    queryFn: () => fetchAizaJson(backendUrl!),
+    enabled: !!backendUrl,
+    staleTime: 0,
+  });
+
+  const openIdUrl = aizaJson?.['openid-configuration'];
+  const {
+    data: openIdConfig,
+    isPending: openIdPending,
+    error: openIdError,
+    refetch: refetchOpenId,
+  } = useQuery({
+    queryKey: ['openid', openIdUrl],
+    queryFn: () => fetchOpenIdConfig(openIdUrl!),
+    enabled: !!openIdUrl,
+    staleTime: OPENID_STALE_TIME,
+  });
+
+  const serverId = backendUrl ? getServerId(backendUrl) : null;
+  const backendType = backendUrl ? getBackendType(backendUrl) : 'prod';
+  const error = aizaError?.message ?? openIdError?.message ?? null;
+  const status: BackendStatus = error ? 'error' : aizaPending || openIdPending ? 'checking' : 'ok';
+
+  const connectTo = useCallback((url: string) => {
+    localStorage.setItem('aiza_current_backend', url);
+    if (url === backendUrl) {
+      refetchAiza();
+      if (openIdUrl) refetchOpenId();
     }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, [refreshConfig]);
+    setBackendUrl(url);
+  }, [backendUrl, openIdUrl, refetchAiza, refetchOpenId]);
 
   return (
     <ServerConfigContext.Provider
       value={{
         serverId,
-        serverConfig,
-        isLoading,
+        backendUrl,
+        aizaJson: aizaJson ?? null,
+        openIdConfig: openIdConfig ?? null,
         error,
-        urlMismatch,
         status,
         backendType,
         connectTo,
-        getService,
       }}
     >
       {children}

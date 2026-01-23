@@ -5,8 +5,10 @@ import { useServerConfig, ServiceConfig } from './ServerConfigContext';
 
 interface PendingAuth {
   serverId: string;
-  service: string;
+  service: 'api' | 'analytics';
   codeVerifier: string;
+  tokenEndpoint: string;
+  clientId: string;
 }
 
 interface AuthContextValue {
@@ -119,43 +121,45 @@ async function exchangeAuthCode(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { serverId, serverConfig, getService } = useServerConfig();
+  const { serverId, aizaJson, openIdConfig } = useServerConfig();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const silentAuthInProgress = useRef<Map<string, Promise<string | null>>>(new Map());
 
+  const apiService = aizaJson?.api;
+  const analyticsService = aizaJson?.analytics;
+  const { issuer, token_endpoint, authorization_endpoint, end_session_endpoint } = openIdConfig ?? {};
+
   const checkLoginStatus = useCallback((service?: ServiceConfig): boolean => {
-    if (!serverConfig || !service) return false;
+    if (!issuer || !service) return false;
     const tokens = getStoredTokens();
-    const index = findTokenIndex(tokens, serverConfig.issuer, service.client_id);
+    const index = findTokenIndex(tokens, issuer, service.client_id);
     return index >= 0 && isTokenValid(tokens[index]);
-  }, [serverConfig]);
+  }, [issuer]);
 
   useEffect(() => {
-    setIsLoggedIn(checkLoginStatus(getService('api') ?? undefined));
-  }, [serverConfig, getService, checkLoginStatus]);
+    setIsLoggedIn(checkLoginStatus(apiService));
+  }, [apiService, checkLoginStatus]);
 
   useEffect(() => {
     function handleStorageChange(event: StorageEvent): void {
       if (event.key === 'aiza_tokens') {
-        setIsLoggedIn(checkLoginStatus(getService('api') ?? undefined));
+        setIsLoggedIn(checkLoginStatus(apiService));
       }
     }
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [getService, checkLoginStatus]);
+  }, [apiService, checkLoginStatus]);
 
   useEffect(() => {
     const REFRESH_THRESHOLD_MS = 60 * 1000;
 
     async function handleVisibilityChange(): Promise<void> {
       if (document.visibilityState !== 'visible') return;
-
-      const apiService = getService('api');
-      if (!apiService || !serverConfig) return;
+      if (!apiService || !issuer || !token_endpoint) return;
 
       const tokens = getStoredTokens();
-      const tokenIndex = findTokenIndex(tokens, serverConfig.issuer, apiService.client_id);
+      const tokenIndex = findTokenIndex(tokens, issuer, apiService.client_id);
 
       if (tokenIndex < 0) {
         setIsLoggedIn(false);
@@ -174,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           formData.append('client_id', apiService.client_id);
           formData.append('refresh_token', token.refresh_token);
 
-          const response = await fetch(serverConfig.tokenEndpoint, {
+          const response = await fetch(token_endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: formData,
@@ -198,16 +202,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [serverConfig, getService]);
+  }, [apiService, issuer, token_endpoint]);
 
   const login = useCallback(async () => {
-    if (!serverConfig || !serverId) {
+    if (!serverId || !authorization_endpoint || !token_endpoint || !apiService) {
       throw new Error('Backend not configured');
-    }
-
-    const service = getService('api');
-    if (!service) {
-      throw new Error('API service not available');
     }
 
     const codeVerifier = generateRandomString(40);
@@ -217,11 +216,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       serverId,
       service: 'api',
       codeVerifier,
+      tokenEndpoint: token_endpoint,
+      clientId: apiService.client_id,
     };
     localStorage.setItem('aiza_pending_auth', JSON.stringify(pendingAuth));
 
-    const url = new URL(serverConfig.authorizationEndpoint);
-    url.searchParams.set('client_id', service.client_id);
+    const url = new URL(authorization_endpoint);
+    url.searchParams.set('client_id', apiService.client_id);
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('scope', 'openid email');
     url.searchParams.set('redirect_uri', getRedirectUri());
@@ -229,27 +230,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     url.searchParams.set('code_challenge_method', 'S256');
 
     location.assign(url.toString());
-  }, [serverConfig, serverId, getService]);
+  }, [serverId, authorization_endpoint, token_endpoint, apiService]);
 
   const logout = useCallback(async () => {
-    if (!serverConfig) {
+    if (!issuer || !end_session_endpoint || !apiService) {
       throw new Error('Backend not configured');
     }
 
-    const service = getService('api');
-    if (!service) {
-      throw new Error('API service not available');
-    }
-
-    removeToken(serverConfig.issuer, service.client_id);
+    removeToken(issuer, apiService.client_id);
 
     const logoutUrl = `${location.protocol}//${location.host}`;
-    const url = new URL(serverConfig.endSessionEndpoint);
-    url.searchParams.set('client_id', service.client_id);
+    const url = new URL(end_session_endpoint);
+    url.searchParams.set('client_id', apiService.client_id);
     url.searchParams.set('logout_uri', logoutUrl);
 
     location.assign(url.toString());
-  }, [serverConfig, getService]);
+  }, [issuer, end_session_endpoint, apiService]);
 
   const handleOAuthCallback = useCallback(async (code: string) => {
     const pendingAuthStr = localStorage.getItem('aiza_pending_auth');
@@ -258,27 +254,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const pendingAuth: PendingAuth = JSON.parse(pendingAuthStr);
-    const storedBackendUrl = localStorage.getItem('aiza_current_backend');
-
-    if (!storedBackendUrl) {
-      throw new Error('No backend configured');
-    }
-
-    const id = new URL(storedBackendUrl).host;
-    const configStr = localStorage.getItem(`aiza_backend:${id}`);
-    if (!configStr) {
-      throw new Error('Backend configuration not found');
-    }
-
-    const config = JSON.parse(configStr);
-    const service = config[pendingAuth.service];
-    if (!service) {
-      throw new Error(`Service ${pendingAuth.service} not found in config`);
-    }
 
     const token = await exchangeAuthCode(
-      config.tokenEndpoint,
-      service.client_id,
+      pendingAuth.tokenEndpoint,
+      pendingAuth.clientId,
       code,
       pendingAuth.codeVerifier
     );
@@ -292,10 +271,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const trySilentAuth = useCallback(async (service: ServiceConfig): Promise<string | null> => {
-    if (!serverConfig || !serverId) return null;
+    if (!serverId || !authorization_endpoint || !token_endpoint) return null;
 
-    // Capture config value for use in closures
-    const { authorizationEndpoint, tokenEndpoint } = serverConfig;
     const cacheKey = `${serverId}:${service.client_id}`;
 
     const existingPromise = silentAuthInProgress.current.get(cacheKey);
@@ -310,7 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const redirectUri = getRedirectUri();
         const state = generateRandomString(16);
 
-        const url = new URL(authorizationEndpoint);
+        const url = new URL(authorization_endpoint);
         url.searchParams.set('client_id', service.client_id);
         url.searchParams.set('response_type', 'code');
         url.searchParams.set('scope', 'openid email');
@@ -353,7 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             try {
               const token = await exchangeAuthCode(
-                tokenEndpoint,
+                token_endpoint!,
                 service.client_id,
                 data.code,
                 codeVerifier
@@ -383,13 +360,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     silentAuthInProgress.current.set(cacheKey, silentAuthPromise);
     return silentAuthPromise;
-  }, [serverConfig, serverId]);
+  }, [serverId, authorization_endpoint, token_endpoint]);
 
   const refreshToken = useCallback(async (
     token: any,
     service: ServiceConfig
   ): Promise<any | null> => {
-    if (!serverConfig) return null;
+    if (!token_endpoint) return null;
 
     try {
       const formData = new URLSearchParams();
@@ -397,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       formData.append('client_id', service.client_id);
       formData.append('refresh_token', token.refresh_token);
 
-      const response = await fetch(serverConfig.tokenEndpoint, {
+      const response = await fetch(token_endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
@@ -411,16 +388,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return null;
     }
-  }, [serverConfig]);
+  }, [token_endpoint]);
 
   const getAccessToken = useCallback(async (serviceName: 'api' | 'analytics' = 'api'): Promise<string | null> => {
-    if (!serverConfig) return null;
+    if (!issuer) return null;
 
-    const service = getService(serviceName);
+    const service = serviceName === 'api' ? apiService : analyticsService;
     if (!service) return null;
 
     const tokens = getStoredTokens();
-    const tokenIndex = findTokenIndex(tokens, serverConfig.issuer, service.client_id);
+    const tokenIndex = findTokenIndex(tokens, issuer, service.client_id);
 
     if (tokenIndex >= 0) {
       const token = tokens[tokenIndex];
@@ -442,7 +419,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      removeToken(serverConfig.issuer, service.client_id);
+      removeToken(issuer, service.client_id);
       if (serviceName === 'api') {
         setIsLoggedIn(false);
       }
@@ -453,7 +430,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return null;
-  }, [serverConfig, getService, refreshToken, trySilentAuth]);
+  }, [issuer, apiService, analyticsService, refreshToken, trySilentAuth]);
 
   return (
     <AuthContext.Provider
