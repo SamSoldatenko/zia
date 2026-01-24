@@ -241,6 +241,7 @@
         .btn-primary {
             background: var(--color-primary);
             color: white;
+            text-decoration: none;
         }
 
         .btn-primary:hover {
@@ -460,6 +461,11 @@
 </head>
 
 <body>
+    <nav style="margin-bottom: var(--spacing-4);">
+        <a href="/" class="btn btn-primary" style="font-size: var(--font-size-lg); padding: var(--spacing-3) var(--spacing-6);">
+            ← Back to AIZA
+        </a>
+    </nav>
     <header>
         <h1>JWT & Authentication Debug</h1>
         <p class="page-description">Test OAuth2/PKCE flows and backend endpoint authorization</p>

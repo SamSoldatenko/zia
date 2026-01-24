@@ -59,7 +59,7 @@ export default function Auth(): React.ReactElement {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <MenuItem onClick={handleLogin}>
+        <MenuItem onClick={handleLogin} disabled={!!apiAccessToken}>
           <KeyRound size={18} className="mr-2" /> Login
         </MenuItem>
         <MenuItem onClick={handleLogout}>
