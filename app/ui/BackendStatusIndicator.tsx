@@ -17,14 +17,14 @@ const backendLabels: Record<BackendType, string> = {
 };
 
 export default function BackendStatusIndicator(): React.ReactElement {
-  const { status, backendType, serverConfig, error } = useServerConfig();
+  const { status, backendType, backendUrl, error } = useServerConfig();
 
   const { color, icon, label } = statusConfig[status];
   const backendLabel = backendLabels[backendType];
 
   const tooltipContent = error
     ? `${label}: ${error}`
-    : `${serverConfig?.backendUrl || 'Unknown'} (${label})`;
+    : `${backendUrl || 'Unknown'} (${label})`;
 
   return (
     <Tooltip title={tooltipContent}>

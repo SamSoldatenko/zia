@@ -10,9 +10,8 @@ import ThemeToggle from './ThemeToggle';
 
 export default function Auth(): React.ReactElement {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [keyLoading, setKeyLoading] = useState(false);
   const { connectTo, backendType } = useServerConfig();
-  const { login, logout, isLoggedIn, getAccessToken } = useAuth();
+  const { login, logout, apiAccessToken, oauthUserInfo } = useAuth();
   const open = Boolean(anchorEl);
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>): void {
@@ -21,7 +20,6 @@ export default function Auth(): React.ReactElement {
 
   function handleClose(): void {
     setAnchorEl(null);
-    setKeyLoading(false);
   }
 
   function handleLogin(): void {
@@ -34,16 +32,9 @@ export default function Auth(): React.ReactElement {
     handleClose();
   }
 
-  async function handleGetAccessKey(): Promise<void> {
-    setKeyLoading(true);
-    try {
-      const token = await getAccessToken();
-      console.log(token);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      handleClose();
-    }
+  function handleGetAccessKey(): void {
+    console.log(apiAccessToken);
+    handleClose();
   }
 
   function handleSwitchBackend(url: string): void {
@@ -51,13 +42,15 @@ export default function Auth(): React.ReactElement {
     handleClose();
   }
 
+  const tooltip = oauthUserInfo?.name || oauthUserInfo?.username || 'Not logged in';
   return (
     <div className="relative">
       <button
         onClick={handleClick}
+        title={tooltip}
         className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
       >
-        {isLoggedIn ? <UserRoundCheck size={20} /> : <User size={20} />}
+        {!!apiAccessToken ? <UserRoundCheck size={20} /> : <User size={20} />}
       </button>
       <Menu
         anchorEl={anchorEl}
@@ -77,7 +70,7 @@ export default function Auth(): React.ReactElement {
           <ThemeToggle />
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleGetAccessKey} disabled={keyLoading}>
+        <MenuItem onClick={handleGetAccessKey}>
           <Key size={18} className="mr-2" /> Get Access Key
         </MenuItem>
         <Divider />
