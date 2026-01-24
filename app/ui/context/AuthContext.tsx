@@ -307,6 +307,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     location.assign(url.toString());
   }, [issuer, end_session_endpoint, apiService]);
 
+  const { data: apiAccessToken, refetch: refetchAccessToken } = useQuery({
+    queryKey: ['apiAccessToken', issuer, apiService?.client_id],
+    queryFn: () => fetchAccessToken(issuer!, apiService!.client_id, token_endpoint!),
+    enabled: !!issuer && !!apiService && !!token_endpoint,
+    staleTime: ACCESS_TOKEN_STALE_TIME,
+    refetchInterval: ACCESS_TOKEN_REFETCH_INTERVAL,
+  });
+
   const handleOAuthCallback = useCallback(async (code: string) => {
     const pendingAuthStr = localStorage.getItem('aiza_pending_auth');
     if (!pendingAuthStr) {
@@ -324,15 +332,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
 
     storeToken(response);
     localStorage.removeItem('aiza_pending_auth');
-  }, []);
-
-  const { data: apiAccessToken } = useQuery({
-    queryKey: ['apiAccessToken', issuer, apiService?.client_id],
-    queryFn: () => fetchAccessToken(issuer!, apiService!.client_id, token_endpoint!),
-    enabled: !!issuer && !!apiService && !!token_endpoint,
-    staleTime: ACCESS_TOKEN_STALE_TIME,
-    refetchInterval: ACCESS_TOKEN_REFETCH_INTERVAL,
-  });
+    refetchAccessToken();
+  }, [refetchAccessToken]);
 
   const { data: backendUserInfo } = useQuery({
     queryKey: ['backendUserInfo', backendUrl, apiAccessToken],

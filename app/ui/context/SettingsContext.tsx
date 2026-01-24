@@ -64,12 +64,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [serverId]);
 
-  const resolvedTheme = useMemo((): 'light' | 'dark' => {
-    if (settings.theme === 'system') {
-      return systemPrefersDark ? 'dark' : 'light';
-    }
-    return settings.theme;
-  }, [settings.theme, systemPrefersDark]);
+  const resolvedTheme: 'light' | 'dark' =
+  settings.theme === 'system'
+    ? (systemPrefersDark ? 'dark' : 'light')
+    : settings.theme;
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
