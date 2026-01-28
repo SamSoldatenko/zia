@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useCallback } from 'react';
+import { createContext, useContext, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useServerConfig } from './ServerConfigContext';
 
@@ -10,28 +10,19 @@ interface PendingAuth {
   clientId: string;
 }
 
-interface TokenExchangeResponse {
+interface TokenResponse {
   id_token: string;
   access_token: string;
-  refresh_token: string;
   expires_in: number;
   token_type: string;
 }
 
-interface StoredToken {
-  id_token: string;
-  access_token: string;
+interface TokenExchangeResponse extends TokenResponse {
   refresh_token: string;
-  expires_in: number;
-  token_type: string;
+}
+
+interface StoredToken extends TokenExchangeResponse {
   expires_at: number;
-}
-
-interface TokenRefreshResponse {
-  id_token: string;
-  access_token: string;
-  expires_in: number;
-  token_type: string;
 }
 
 interface BackendUserInfo {
@@ -65,13 +56,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+class TokenRevokedError extends Error {
+  constructor(message = 'Token has been revoked') {
+    super(message);
+    this.name = 'TokenRevokedError';
+  }
+}
+
 const RANDOM_CHARSET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const ACCESS_TOKEN_STALE_TIME = 30 * 1000; // 30 seconds
 const ACCESS_TOKEN_REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const BACKEND_USER_STALE_TIME = 60 * 1000; // 1 minute
 const OAUTH_USER_STALE_TIME = 60 * 60 * 1000; // 1 hour
-
-// Utility Functions
 
 function generateRandomString(length: number): string {
   let result = '';
@@ -138,7 +134,7 @@ function deleteToken(issuer: string, clientId: string): void {
   setStoredTokens(tokens);
 }
 
-function updateToken(response: TokenRefreshResponse): StoredToken | null {
+function updateToken(response: TokenResponse): StoredToken | null {
   const { iss, client_id } = parseJwtPayload(response.access_token);
   const tokens = getStoredTokens();
   const index = tokens.findIndex((t) => tokenMatchesCredentials(t, iss, client_id));
@@ -147,10 +143,7 @@ function updateToken(response: TokenRefreshResponse): StoredToken | null {
 
   const updatedToken: StoredToken = {
     ...tokens[index],
-    id_token: response.id_token,
-    access_token: response.access_token,
-    expires_in: response.expires_in,
-    token_type: response.token_type,
+    ...response,
     expires_at: Date.now() + response.expires_in * 1000,
   };
 
@@ -167,7 +160,7 @@ async function performTokenRefresh(
   tokenEndpoint: string,
   clientId: string,
   refreshToken: string
-): Promise<TokenRefreshResponse | null> {
+): Promise<TokenResponse | null> {
   const formData = new URLSearchParams({
     grant_type: 'refresh_token',
     client_id: clientId,
@@ -221,6 +214,7 @@ async function fetchBackendUserInfo(
   const response = await fetch(`${backendUrl}/accounts/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+  if (response.status === 401) throw new TokenRevokedError();
   if (!response.ok) return null;
   return response.json();
 }
@@ -232,6 +226,7 @@ async function fetchOAuthUserInfo(
   const response = await fetch(userinfoEndpoint, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+  if (response.status === 401) throw new TokenRevokedError();
   if (!response.ok) return null;
   return response.json();
 }
@@ -244,17 +239,14 @@ async function fetchAccessToken(
   const token = loadToken(issuer, clientId);
   if (!token) return null;
 
-  if (token.expires_at > Date.now()) {
-    return token.access_token;
-  }
+  if (token.expires_at > Date.now()) return token.access_token;
 
-  if (token.refresh_token) {
-    const refreshResponse = await performTokenRefresh(tokenEndpoint, clientId, token.refresh_token);
-    if (refreshResponse) {
-      const updated = updateToken(refreshResponse);
-      if (updated) return updated.access_token;
-    }
-  }
+  const refreshResponse = token.refresh_token
+    ? await performTokenRefresh(tokenEndpoint, clientId, token.refresh_token)
+    : null;
+
+  const updated = refreshResponse ? updateToken(refreshResponse) : null;
+  if (updated) return updated.access_token;
 
   deleteToken(issuer, clientId);
   return null;
@@ -335,19 +327,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     refetchAccessToken();
   }, [refetchAccessToken]);
 
-  const { data: backendUserInfo } = useQuery({
+  const { data: backendUserInfo, error: backendUserError } = useQuery({
     queryKey: ['backendUserInfo', backendUrl, apiAccessToken],
     queryFn: () => fetchBackendUserInfo(backendUrl!, apiAccessToken!),
     enabled: !!backendUrl && !!apiAccessToken,
     staleTime: BACKEND_USER_STALE_TIME,
   });
 
-  const { data: oauthUserInfo } = useQuery({
+  const { data: oauthUserInfo, error: oauthUserError } = useQuery({
     queryKey: ['oauthUserInfo', userinfo_endpoint, apiAccessToken],
     queryFn: () => fetchOAuthUserInfo(userinfo_endpoint!, apiAccessToken!),
     enabled: !!userinfo_endpoint && !!apiAccessToken,
     staleTime: OAUTH_USER_STALE_TIME,
   });
+
+  const tokenRevoked =
+    backendUserError instanceof TokenRevokedError ||
+    oauthUserError instanceof TokenRevokedError;
+
+  useEffect(() => {
+    if (!tokenRevoked || !token_endpoint || !apiService || !issuer) return;
+
+    const token = loadToken(issuer, apiService.client_id);
+    if (!token?.refresh_token) {
+      logout();
+      return;
+    }
+
+    performTokenRefresh(token_endpoint, apiService.client_id, token.refresh_token).then(
+      (refreshResponse) => {
+        if (refreshResponse) {
+          updateToken(refreshResponse);
+          refetchAccessToken();
+        } else {
+          logout();
+        }
+      }
+    );
+  }, [tokenRevoked, token_endpoint, apiService, issuer, logout, refetchAccessToken]);
 
   return (
     <AuthContext.Provider
