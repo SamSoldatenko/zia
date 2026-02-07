@@ -1,6 +1,6 @@
 <svg
-  width="300"
-  height="120"
+  width="150"
+  height="60"
   viewBox="0 0 300 120"
   xmlns="http://www.w3.org/2000/svg"
 >
@@ -28,7 +28,7 @@
   <text x="120" y="58"
         font-family="Inter, Arial, sans-serif"
         font-size="40"
-        font-weight="700"
+        font-weight="900"
         fill="#ffffff">
     AIZA
   </text>
@@ -36,7 +36,7 @@
   <text x="120" y="90"
         font-family="Inter, Arial, sans-serif"
         font-size="20"
-        font-weight="400"
+        font-weight="700"
         fill="#bdbdbd">
     developer login
   </text>
