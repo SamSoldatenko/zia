@@ -276,7 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     const url = new URL(authorization_endpoint);
     url.searchParams.set('client_id', apiService.client_id);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', 'openid email profile');
+    url.searchParams.set('scope', 'openid email');
     url.searchParams.set('redirect_uri', getRedirectUri());
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
