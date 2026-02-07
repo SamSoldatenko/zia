@@ -1,8 +1,15 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getDefaultBackend, getBackendType, BackendType } from '@/app/config/backends';
+import {
+  getDefaultBackend,
+  getBackendType,
+  BackendType,
+  loadIssuerAllowlist,
+  cacheIssuerBinding,
+  validateIssuer,
+} from '@/app/config/backends';
 
 export type BackendStatus = 'checking' | 'ok' | 'error';
 export type { BackendType } from '@/app/config/backends';
@@ -103,9 +110,29 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
     staleTime: OPENID_STALE_TIME,
   });
 
+  const [issuerAllowlist, setIssuerAllowlist] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setIssuerAllowlist(loadIssuerAllowlist());
+  }, []);
+
+  const { validatedOpenIdConfig, issuerError } = useMemo(() => {
+    if (!openIdConfig || !backendUrl) return { validatedOpenIdConfig: null, issuerError: null };
+    const error = validateIssuer(issuerAllowlist, backendUrl, openIdConfig.issuer);
+    if (error) return { validatedOpenIdConfig: null, issuerError: error };
+    return { validatedOpenIdConfig: openIdConfig, issuerError: null };
+  }, [openIdConfig, backendUrl, issuerAllowlist]);
+
+  useEffect(() => {
+    if (!validatedOpenIdConfig || !backendUrl) return;
+    if (issuerAllowlist[backendUrl]) return; // already known
+    cacheIssuerBinding(backendUrl, validatedOpenIdConfig.issuer);
+    setIssuerAllowlist((prev) => ({ ...prev, [backendUrl]: validatedOpenIdConfig.issuer }));
+  }, [validatedOpenIdConfig, backendUrl, issuerAllowlist]);
+
   const serverId = backendUrl ? getServerId(backendUrl) : null;
   const backendType = backendUrl ? getBackendType(backendUrl) : 'prod';
-  const error = aizaError?.message ?? openIdError?.message ?? null;
+  const error = aizaError?.message ?? openIdError?.message ?? issuerError ?? null;
   const status: BackendStatus = error ? 'error' : aizaPending || openIdPending ? 'checking' : 'ok';
 
   const connectTo = useCallback((url: string) => {
@@ -123,7 +150,7 @@ export function ServerConfigProvider({ children }: { children: React.ReactNode }
         serverId,
         backendUrl,
         aizaJson: aizaJson ?? null,
-        openIdConfig: openIdConfig ?? null,
+        openIdConfig: validatedOpenIdConfig,
         error,
         status,
         backendType,
